@@ -101,10 +101,7 @@ CRITICAL INSTRUCTIONS:
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-white/30 selection:text-white overflow-x-hidden relative">
-      {/* Subtle Grid Background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none print:hidden" />
-      
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-white/30 selection:text-white overflow-x-hidden relative">
       <div className="max-w-5xl mx-auto px-6 py-12 md:py-24 relative z-10 min-h-[calc(100vh-80px)]">
         
         {/* Header / Logo */}
@@ -193,7 +190,7 @@ CRITICAL INSTRUCTIONS:
                 </div>
               </div>
 
-              <div className="bg-black p-8 -mx-8 rounded-2xl print:p-0 print:mx-0">
+              <div className="bg-[#0a0a0a] p-8 -mx-8 rounded-2xl print:p-0 print:mx-0">
                 <div className="hidden print:block mb-8">
                   <h1 className="text-3xl font-light text-white mb-2">ASET</h1>
                   <p className="text-white/60 font-mono text-sm">Analysis Report: {query}</p>
