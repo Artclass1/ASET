@@ -101,8 +101,11 @@ CRITICAL INSTRUCTIONS:
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-white/30 selection:text-white overflow-x-hidden">
-      <div className="max-w-5xl mx-auto px-6 py-12 md:py-24">
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-white/30 selection:text-white overflow-x-hidden relative">
+      {/* Subtle Grid Background */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none print:hidden" />
+      
+      <div className="max-w-5xl mx-auto px-6 py-12 md:py-24 relative z-10 min-h-[calc(100vh-80px)]">
         
         {/* Header / Logo */}
         <motion.div 
@@ -110,6 +113,7 @@ CRITICAL INSTRUCTIONS:
           className="mb-16 print:hidden"
         >
           <h1 className="text-xl font-mono tracking-widest text-white/50 uppercase">ASET</h1>
+          <p className="text-sm font-light text-white/30 mt-2">Institutional-grade market analysis powered by real-time AI.</p>
         </motion.div>
 
         {/* Search Input */}
@@ -264,6 +268,11 @@ CRITICAL INSTRUCTIONS:
         </AnimatePresence>
 
       </div>
+
+      {/* Footer */}
+      <footer className="w-full text-center py-8 text-xs font-mono text-white/20 print:hidden relative z-10">
+        ASET Intelligence &copy; {new Date().getFullYear()}. For demonstration purposes only. Not financial advice.
+      </footer>
     </div>
   );
 }

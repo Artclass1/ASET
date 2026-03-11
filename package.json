@@ -1,7 +1,10 @@
 {
-  "name": "react-example",
+  "name": "aset-intelligence",
+  "description": "Institutional-grade, AI-driven market analysis platform.",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "author": "ASET Team",
+  "keywords": ["finance", "ai", "gemini", "stock-market", "analysis", "fintech", "react"],
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
