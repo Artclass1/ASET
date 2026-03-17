@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, ExternalLink, Loader2, FileText } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import generatePDF from 'react-to-pdf';
+import { ResponsiveContainer, LineChart, Line, XAxis, Tooltip } from 'recharts';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -16,6 +17,8 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [report, setReport] = useState('');
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [chartUnit, setChartUnit] = useState('');
   const [sources, setSources] = useState<Array<{uri: string, title: string}>>([]);
   const [loadingText, setLoadingText] = useState('Initializing secure connection...');
   const targetRef = useRef(null);
@@ -47,6 +50,8 @@ export default function App() {
 
     setStatus('loading');
     setReport('');
+    setChartData([]);
+    setChartUnit('');
     setSources([]);
 
     try {
@@ -75,12 +80,48 @@ CRITICAL INSTRUCTIONS:
    - Technical Overview
    - Recent Catalysts & Official News
    - Outlook & Conclusion
-7. Maintain an objective, highly analytical, and professional tone.`,
+7. Maintain an objective, highly analytical, and professional tone.
+8. You MUST output your response in two parts:
+   First, the comprehensive Markdown report.
+   Second, at the very end of your response, append a JSON block containing the chart data for the 5-Year Financial Trend.
+   
+Use this exact format for the JSON block at the end:
+\`\`\`json
+{
+  "chartData": [
+    { "year": "2019", "revenue": 100.5, "netIncome": 20.1 },
+    { "year": "2020", "revenue": 110.2, "netIncome": 25.4 }
+  ],
+  "chartUnit": "Billions USD"
+}
+\`\`\`
+If chart data is unavailable, provide an empty array.`,
           tools: [{ googleSearch: {} }],
         }
       });
 
-      setReport(response.text || 'No report generated.');
+      let resultText = response.text || '';
+      let reportContent = resultText;
+      let chartData: any[] = [];
+      let chartUnit = '';
+
+      // Extract JSON block from the end of the text
+      const jsonMatch = resultText.match(/```(?:json)?\n([\s\S]*?"chartData"[\s\S]*?)\n```/);
+      if (jsonMatch && jsonMatch[1]) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          chartData = parsed.chartData || [];
+          chartUnit = parsed.chartUnit || '';
+          // Remove the JSON block from the report
+          reportContent = resultText.replace(/```(?:json)?\n[\s\S]*?"chartData"[\s\S]*?\n```/, '').trim();
+        } catch (e) {
+          console.error("Failed to parse chart JSON:", e);
+        }
+      }
+
+      setReport(reportContent || 'No report generated.');
+      setChartData(chartData);
+      setChartUnit(chartUnit);
       
       const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
       if (chunks) {
@@ -98,6 +139,25 @@ CRITICAL INSTRUCTIONS:
       console.error(error);
       setStatus('error');
     }
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-[#111] border border-white/10 p-4 rounded-xl shadow-2xl">
+          <p className="text-white/50 text-xs font-mono mb-2">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center justify-between gap-6 mb-1 last:mb-0">
+              <span className="text-sm text-white/80 capitalize">{entry.name}</span>
+              <span className="text-sm font-mono text-white">
+                {entry.value} {chartUnit}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -195,6 +255,48 @@ CRITICAL INSTRUCTIONS:
                   <h1 className="text-3xl font-light text-white mb-2">ASET</h1>
                   <p className="text-white/60 font-mono text-sm">Analysis Report: {query}</p>
                 </div>
+
+                {chartData && chartData.length > 0 && (
+                  <div className="mb-16 border border-white/10 rounded-2xl p-6 bg-[#0a0a0a] print:hidden">
+                    <div className="flex items-center justify-between mb-8">
+                      <h3 className="text-xs font-mono text-white/40 uppercase tracking-widest">5-Year Financial Trend</h3>
+                      <span className="text-xs font-mono text-white/30">{chartUnit}</span>
+                    </div>
+                    <div className="h-[300px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                          <XAxis 
+                            dataKey="year" 
+                            stroke="#333" 
+                            tick={{ fill: '#666', fontSize: 12, fontFamily: 'monospace' }} 
+                            tickLine={false}
+                            axisLine={false}
+                            dy={10}
+                          />
+                          <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#333', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                          <Line 
+                            type="monotone" 
+                            dataKey="revenue" 
+                            name="Revenue"
+                            stroke="#ffffff" 
+                            strokeWidth={2} 
+                            dot={false}
+                            activeDot={{ r: 4, fill: '#fff', stroke: '#000', strokeWidth: 2 }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="netIncome" 
+                            name="Net Income"
+                            stroke="#666666" 
+                            strokeWidth={2} 
+                            dot={false}
+                            activeDot={{ r: 4, fill: '#666', stroke: '#000', strokeWidth: 2 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
 
                 <div className="prose prose-invert prose-lg max-w-none 
                   prose-headings:font-light prose-headings:tracking-tight

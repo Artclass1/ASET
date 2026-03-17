@@ -4,7 +4,15 @@
   "private": true,
   "version": "1.0.0",
   "author": "ASET Team",
-  "keywords": ["finance", "ai", "gemini", "stock-market", "analysis", "fintech", "react"],
+  "keywords": [
+    "finance",
+    "ai",
+    "gemini",
+    "stock-market",
+    "analysis",
+    "fintech",
+    "react"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
@@ -28,6 +36,7 @@
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "react-to-pdf": "^3.2.1",
+    "recharts": "^3.8.0",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0",
     "vite": "^6.2.0"
