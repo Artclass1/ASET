@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import generatePDF from 'react-to-pdf';
-import { ResponsiveContainer, LineChart, Line, XAxis, Tooltip } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, Tooltip } from 'recharts';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -18,7 +18,7 @@ export default function App() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [report, setReport] = useState('');
   const [chartData, setChartData] = useState<any[]>([]);
-  const [chartUnit, setChartUnit] = useState('');
+  const [chartConfig, setChartConfig] = useState<any>(null);
   const [sources, setSources] = useState<Array<{uri: string, title: string}>>([]);
   const [loadingText, setLoadingText] = useState('Initializing secure connection...');
   const targetRef = useRef(null);
@@ -51,7 +51,7 @@ export default function App() {
     setStatus('loading');
     setReport('');
     setChartData([]);
-    setChartUnit('');
+    setChartConfig(null);
     setSources([]);
 
     try {
@@ -83,22 +83,29 @@ CRITICAL INSTRUCTIONS:
 7. Maintain an objective, highly analytical, and professional tone.
 8. You MUST output your response in two parts:
    First, the comprehensive Markdown report.
-   Second, at the very end of your response, append a JSON block containing the ACTUAL 5-Year Financial Trend data for the specific company/asset queried.
+   Second, at the very end of your response, append a JSON block containing the ACTUAL data for a relevant chart.
    
-Use this exact JSON structure, but replace the sample data with the REAL data you found for the queried asset:
+If the user queries a single company, provide a 5-Year Financial Trend (Line chart).
+If the user queries a list or comparison (e.g., "top stocks"), provide a comparison chart of the top 5-10 items (Bar chart).
+
+Use this exact JSON structure, replacing the sample data with the REAL data you found:
 \`\`\`json
 {
-  "chartData": [
-    { "year": "2019", "revenue": 100.5, "netIncome": 20.1 },
-    { "year": "2020", "revenue": 110.2, "netIncome": 25.4 },
-    { "year": "2021", "revenue": 120.0, "netIncome": 30.0 },
-    { "year": "2022", "revenue": 130.5, "netIncome": 35.2 },
-    { "year": "2023", "revenue": 140.0, "netIncome": 40.1 }
+  "chartTitle": "5-Year Financial Trend",
+  "chartType": "line", // use "line" for time-series, "bar" for comparisons
+  "xAxisKey": "year", // the key used for the x-axis (e.g., "year", "ticker", "company")
+  "chartUnit": "Billions USD",
+  "series": [
+    { "key": "revenue", "name": "Revenue", "color": "#ffffff" },
+    { "key": "netIncome", "name": "Net Income", "color": "#666666" }
   ],
-  "chartUnit": "Billions USD"
+  "data": [
+    { "year": "2019", "revenue": 100.5, "netIncome": 20.1 },
+    { "year": "2020", "revenue": 110.2, "netIncome": 25.4 }
+  ]
 }
 \`\`\`
-If chart data is unavailable, provide an empty array.`,
+If chart data is unavailable, provide an empty array for data.`,
           tools: [{ googleSearch: {} }],
         }
       });
@@ -106,17 +113,17 @@ If chart data is unavailable, provide an empty array.`,
       let resultText = response.text || '';
       let reportContent = resultText;
       let chartData: any[] = [];
-      let chartUnit = '';
+      let chartConfig: any = null;
 
       // Extract JSON block from the end of the text
-      const jsonMatch = resultText.match(/```(?:json)?\n([\s\S]*?"chartData"[\s\S]*?)\n```/);
+      const jsonMatch = resultText.match(/```(?:json)?\n([\s\S]*?"data"[\s\S]*?)\n```/);
       if (jsonMatch && jsonMatch[1]) {
         try {
           const parsed = JSON.parse(jsonMatch[1]);
-          chartData = parsed.chartData || [];
-          chartUnit = parsed.chartUnit || '';
+          chartData = parsed.data || [];
+          chartConfig = parsed;
           // Remove the JSON block from the report
-          reportContent = resultText.replace(/```(?:json)?\n[\s\S]*?"chartData"[\s\S]*?\n```/, '').trim();
+          reportContent = resultText.replace(/```(?:json)?\n[\s\S]*?"data"[\s\S]*?\n```/, '').trim();
         } catch (e) {
           console.error("Failed to parse chart JSON:", e);
         }
@@ -124,7 +131,7 @@ If chart data is unavailable, provide an empty array.`,
 
       setReport(reportContent || 'No report generated.');
       setChartData(chartData);
-      setChartUnit(chartUnit);
+      setChartConfig(chartConfig);
       
       const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
       if (chunks) {
@@ -153,7 +160,7 @@ If chart data is unavailable, provide an empty array.`,
             <div key={index} className="flex items-center justify-between gap-6 mb-1 last:mb-0">
               <span className="text-sm text-white/80 capitalize">{entry.name}</span>
               <span className="text-sm font-mono text-white">
-                {entry.value} {chartUnit}
+                {entry.value} {chartConfig?.chartUnit || ''}
               </span>
             </div>
           ))}
@@ -259,43 +266,60 @@ If chart data is unavailable, provide an empty array.`,
                   <p className="text-white/60 font-mono text-sm">Analysis Report: {query}</p>
                 </div>
 
-                {chartData && chartData.length > 0 && (
+                {chartData && chartData.length > 0 && chartConfig && (
                   <div className="mb-16 border border-white/10 rounded-2xl p-6 bg-[#0a0a0a] print:hidden">
                     <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-xs font-mono text-white/40 uppercase tracking-widest">5-Year Financial Trend</h3>
-                      <span className="text-xs font-mono text-white/30">{chartUnit}</span>
+                      <h3 className="text-xs font-mono text-white/40 uppercase tracking-widest">{chartConfig.chartTitle || 'Financial Data'}</h3>
+                      <span className="text-xs font-mono text-white/30">{chartConfig.chartUnit || ''}</span>
                     </div>
                     <div className="h-[300px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                          <XAxis 
-                            dataKey="year" 
-                            stroke="#333" 
-                            tick={{ fill: '#666', fontSize: 12, fontFamily: 'monospace' }} 
-                            tickLine={false}
-                            axisLine={false}
-                            dy={10}
-                          />
-                          <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#333', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                          <Line 
-                            type="monotone" 
-                            dataKey="revenue" 
-                            name="Revenue"
-                            stroke="#ffffff" 
-                            strokeWidth={2} 
-                            dot={false}
-                            activeDot={{ r: 4, fill: '#fff', stroke: '#000', strokeWidth: 2 }}
-                          />
-                          <Line 
-                            type="monotone" 
-                            dataKey="netIncome" 
-                            name="Net Income"
-                            stroke="#666666" 
-                            strokeWidth={2} 
-                            dot={false}
-                            activeDot={{ r: 4, fill: '#666', stroke: '#000', strokeWidth: 2 }}
-                          />
-                        </LineChart>
+                        {chartConfig.chartType === 'bar' ? (
+                          <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                            <XAxis 
+                              dataKey={chartConfig.xAxisKey || 'year'} 
+                              stroke="#333" 
+                              tick={{ fill: '#666', fontSize: 12, fontFamily: 'monospace' }} 
+                              tickLine={false}
+                              axisLine={false}
+                              dy={10}
+                            />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1a1a1a' }} />
+                            {chartConfig.series?.map((s: any, i: number) => (
+                              <Bar 
+                                key={s.key}
+                                dataKey={s.key} 
+                                name={s.name}
+                                fill={s.color || (i === 0 ? '#ffffff' : '#666666')} 
+                                radius={[4, 4, 0, 0]}
+                              />
+                            ))}
+                          </BarChart>
+                        ) : (
+                          <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                            <XAxis 
+                              dataKey={chartConfig.xAxisKey || 'year'} 
+                              stroke="#333" 
+                              tick={{ fill: '#666', fontSize: 12, fontFamily: 'monospace' }} 
+                              tickLine={false}
+                              axisLine={false}
+                              dy={10}
+                            />
+                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#333', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                            {chartConfig.series?.map((s: any, i: number) => (
+                              <Line 
+                                key={s.key}
+                                type="monotone" 
+                                dataKey={s.key} 
+                                name={s.name}
+                                stroke={s.color || (i === 0 ? '#ffffff' : '#666666')} 
+                                strokeWidth={2} 
+                                dot={false}
+                                activeDot={{ r: 4, fill: s.color || (i === 0 ? '#ffffff' : '#666666'), stroke: '#000', strokeWidth: 2 }}
+                              />
+                            ))}
+                          </LineChart>
+                        )}
                       </ResponsiveContainer>
                     </div>
                   </div>
