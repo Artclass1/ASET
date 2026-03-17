@@ -83,14 +83,17 @@ CRITICAL INSTRUCTIONS:
 7. Maintain an objective, highly analytical, and professional tone.
 8. You MUST output your response in two parts:
    First, the comprehensive Markdown report.
-   Second, at the very end of your response, append a JSON block containing the chart data for the 5-Year Financial Trend.
+   Second, at the very end of your response, append a JSON block containing the ACTUAL 5-Year Financial Trend data for the specific company/asset queried.
    
-Use this exact format for the JSON block at the end:
+Use this exact JSON structure, but replace the sample data with the REAL data you found for the queried asset:
 \`\`\`json
 {
   "chartData": [
     { "year": "2019", "revenue": 100.5, "netIncome": 20.1 },
-    { "year": "2020", "revenue": 110.2, "netIncome": 25.4 }
+    { "year": "2020", "revenue": 110.2, "netIncome": 25.4 },
+    { "year": "2021", "revenue": 120.0, "netIncome": 30.0 },
+    { "year": "2022", "revenue": 130.5, "netIncome": 35.2 },
+    { "year": "2023", "revenue": 140.0, "netIncome": 40.1 }
   ],
   "chartUnit": "Billions USD"
 }
