@@ -127,7 +127,14 @@ Use this exact JSON structure, replacing the sample data with the REAL data you 
   "data": [
     { "year": "2019", "revenue": 100.5, "netIncome": 20.1 },
     { "year": "2020", "revenue": 110.2, "netIncome": 25.4 }
-  ]
+  ],
+  "highlights": [
+    { "label": "Market Cap", "value": "$3.2T" },
+    { "label": "5Yr Return", "value": "+145%" },
+    { "label": "Avg Net Profit", "value": "$80B" },
+    { "label": "P/E Ratio", "value": "24.5" }
+  ],
+  "keyInsight": "A single sentence analytical takeaway from the data."
 }
 \`\`\`
 If chart data is unavailable, provide an empty array for data.`,
@@ -302,65 +309,99 @@ If chart data is unavailable, provide an empty array for data.`,
                 </div>
 
                 {chartData && chartData.length > 0 && chartConfig && (
-                  <div ref={chartRef} className="mb-16 border border-white/10 rounded-2xl p-6 md:p-8 bg-[#0a0a0a] print:hidden">
-                    <div className="flex items-center space-x-4 mb-8 pb-8 border-b border-white/10">
-                      <h1 className="text-xl font-mono tracking-widest text-white/50 uppercase">ASET</h1>
-                      <div className="w-px h-6 bg-white/10"></div>
-                      <p className="text-sm font-light text-white/70 max-w-md truncate">{query}</p>
-                    </div>
-                    <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-xs font-mono text-white/40 uppercase tracking-widest">{chartConfig.chartTitle || 'Financial Data'}</h3>
-                      <span className="text-xs font-mono text-white/30">{chartConfig.chartUnit || ''}</span>
-                    </div>
-                    <div className="h-[400px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        {chartConfig.chartType === 'bar' ? (
-                          <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                            <XAxis 
-                              dataKey={chartConfig.xAxisKey || 'year'} 
-                              stroke="#333" 
-                              tick={{ fill: '#666', fontSize: 12, fontFamily: 'monospace' }} 
-                              tickLine={false}
-                              axisLine={false}
-                              dy={10}
-                            />
-                            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1a1a1a' }} />
-                            {chartConfig.series?.map((s: any, i: number) => (
-                              <Bar 
-                                key={s.key}
-                                dataKey={s.key} 
-                                name={s.name}
-                                fill={s.color || (i === 0 ? '#ffffff' : '#666666')} 
-                                radius={[4, 4, 0, 0]}
+                  <div className="mb-16 print:hidden flex justify-center w-full">
+                    <div ref={chartRef} className="w-full max-w-xl bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 md:p-10 aspect-[4/5] flex flex-col relative overflow-hidden shadow-2xl">
+                      
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/10 flex-none shrink-0">
+                        <div className="flex items-center space-x-4">
+                          <h1 className="text-xl font-mono tracking-widest text-white/90 uppercase">ASET</h1>
+                          <div className="w-px h-5 bg-white/20"></div>
+                          <p className="text-xs font-light text-white/50 uppercase tracking-widest max-w-[140px] md:max-w-xs truncate">{query}</p>
+                        </div>
+                        <p className="text-xs font-mono text-white/30 text-right shrink-0">{new Date().toLocaleDateString()}</p>
+                      </div>
+
+                      {/* Main Title */}
+                      <div className="mb-6 flex-none shrink-0">
+                        <h3 className="text-xl md:text-2xl font-light text-white mb-2">{chartConfig.chartTitle || 'Financial Data'}</h3>
+                        <span className="text-xs font-mono text-white/40 uppercase tracking-widest">{chartConfig.chartUnit || ''}</span>
+                      </div>
+                      
+                      {/* Highlights Grid */}
+                      {chartConfig.highlights && chartConfig.highlights.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 flex-none shrink-0">
+                          {chartConfig.highlights.map((h: any, i: number) => (
+                            <div key={i} className="flex flex-col border-l border-white/10 pl-3">
+                              <span className="text-[9px] md:text-[10px] font-mono text-white/40 uppercase tracking-wider mb-1">{h.label}</span>
+                              <span className="text-base md:text-lg font-light text-white">{h.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Chart */}
+                      <div className="flex-1 w-full min-h-0 relative mb-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                          {chartConfig.chartType === 'bar' ? (
+                            <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                              <XAxis 
+                                dataKey={chartConfig.xAxisKey || 'year'} 
+                                stroke="#333" 
+                                tick={{ fill: '#666', fontSize: 10, fontFamily: 'monospace' }} 
+                                tickLine={false}
+                                axisLine={false}
+                                dy={10}
                               />
-                            ))}
-                          </BarChart>
-                        ) : (
-                          <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                            <XAxis 
-                              dataKey={chartConfig.xAxisKey || 'year'} 
-                              stroke="#333" 
-                              tick={{ fill: '#666', fontSize: 12, fontFamily: 'monospace' }} 
-                              tickLine={false}
-                              axisLine={false}
-                              dy={10}
-                            />
-                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#333', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                            {chartConfig.series?.map((s: any, i: number) => (
-                              <Line 
-                                key={s.key}
-                                type="monotone" 
-                                dataKey={s.key} 
-                                name={s.name}
-                                stroke={s.color || (i === 0 ? '#ffffff' : '#666666')} 
-                                strokeWidth={2} 
-                                dot={false}
-                                activeDot={{ r: 4, fill: s.color || (i === 0 ? '#ffffff' : '#666666'), stroke: '#000', strokeWidth: 2 }}
+                              <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1a1a1a' }} />
+                              {chartConfig.series?.map((s: any, i: number) => (
+                                <Bar 
+                                  key={s.key}
+                                  dataKey={s.key} 
+                                  name={s.name}
+                                  fill={s.color || (i === 0 ? '#ffffff' : '#666666')} 
+                                  radius={[4, 4, 0, 0]}
+                                  maxBarSize={50}
+                                />
+                              ))}
+                            </BarChart>
+                          ) : (
+                            <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                              <XAxis 
+                                dataKey={chartConfig.xAxisKey || 'year'} 
+                                stroke="#333" 
+                                tick={{ fill: '#666', fontSize: 10, fontFamily: 'monospace' }} 
+                                tickLine={false}
+                                axisLine={false}
+                                dy={10}
                               />
-                            ))}
-                          </LineChart>
-                        )}
-                      </ResponsiveContainer>
+                              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#333', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                              {chartConfig.series?.map((s: any, i: number) => (
+                                <Line 
+                                  key={s.key}
+                                  type="monotone" 
+                                  dataKey={s.key} 
+                                  name={s.name}
+                                  stroke={s.color || (i === 0 ? '#ffffff' : '#666666')} 
+                                  strokeWidth={2} 
+                                  dot={false}
+                                  activeDot={{ r: 4, fill: s.color || (i === 0 ? '#ffffff' : '#666666'), stroke: '#000', strokeWidth: 2 }}
+                                />
+                              ))}
+                            </LineChart>
+                          )}
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Insight / Details at Bottom */}
+                      {chartConfig.keyInsight && (
+                        <div className="mt-auto pt-4 border-t border-white/10 flex-none shrink-0">
+                          <p className="text-xs md:text-sm font-light text-white/70 leading-relaxed italic border-l-2 border-white/20 pl-4">
+                            <span className="text-white/90 font-medium not-italic mr-2">Insight:</span> 
+                            {chartConfig.keyInsight}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
