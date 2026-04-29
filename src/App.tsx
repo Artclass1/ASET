@@ -8,7 +8,7 @@ import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import generatePDF from 'react-to-pdf';
 import { toPng } from 'html-to-image';
-import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, Tooltip } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -35,8 +35,8 @@ export default function App() {
       
       const dataUrl = await toPng(chartRef.current, { 
         quality: 1, 
-        pixelRatio: 2, 
-        backgroundColor: '#0a0a0a',
+        pixelRatio: 3, 
+        backgroundColor: '#030303',
         style: {
           margin: '0',
           padding: '32px',
@@ -92,49 +92,49 @@ export default function App() {
         contents: query,
         config: {
           maxOutputTokens: 8192,
-          systemInstruction: `You are an elite financial analyst. Create an in-depth, highly professional market analysis report based on the user's request.
+          systemInstruction: `You are an elite institutional financial analyst at a top-tier investment bank. Create an in-depth, professional-grade market analysis report based on the user's request.
           
 CRITICAL INSTRUCTIONS:
-1. You MUST use the Google Search tool to gather the most up-to-date, official data. You are tasked with providing Worldwide Stock Analysis. Support any global exchange (NYSE, NASDAQ, LSE, TSE, SSE, etc). If no country is specified, infer the most prominent global entity for that query.
-2. Prioritize data from official stock exchanges, investor relations websites, and top-tier financial news (Bloomberg, Reuters, CNBC, WSJ).
-3. Strictly EXCLUDE rumors and fake news. Rely ONLY on genuine source information. DO NOT hallucinate financial figures. If a specific data point is unavailable, explicitly state "N/A" or "Data Unavailable".
-4. Format the output as a comprehensive Markdown report.
-5. Provide the specific financial metrics requested by the user. If none are specified, default to: Net Profit, Market Capitalization, and Debt ratios.
-6. Include relevant analytical sections (Executive Summary, Market Data, Fundamental Analysis, etc.) where applicable.
-7. Maintain an objective, highly analytical, and professional tone.
+1. You MUST use the Google Search tool to gather the most up-to-date, official data. You are tasked with providing Worldwide Stock Analysis. Support any global exchange.
+2. Prioritize data from SEC filings (or regional equivalents), investor relations, and top-tier financial news (Bloomberg, Reuters, WSJ).
+3. Strictly EXCLUDE rumors and unverified sources. DO NOT hallucinate financial figures. Explicitly state "N/A" if data is unavailable.
+4. Format the output as a highly structured, comprehensive Markdown report with professional financial terminology and analytical rigor.
+5. Provide specific financial metrics. Incorporate KPIs like Return on Equity (ROE), P/E ratio, Market Cap, YoY growth, and Debt-to-Equity where possible.
+6. Include relevant institutional analytical sections (e.g., "Macroeconomic Context", "Fundamental Drivers", "Valuation Multiples", "Key Catalysts", "Risk Factors").
+7. Maintain an objective, highly analytical, and institutional tone.
 8. You MUST output your response in two parts:
    First, the comprehensive Markdown report. 
-   - If the user asks for a specific number of items (e.g., "top 99", "list 50"), you MUST attempt to list ALL of them.
-   - For lists of more than 5 items, you MUST format the data as a Markdown table for readability.
-   - If you cannot accurately find all requested items (e.g., exactly 99), provide as many accurate ones as you can find and explicitly state the search limitations. Accuracy is more important than hitting the exact number with fake data.
+   - If the user asks for a specific number of items (e.g., "top 99"), attempt to list ALL of them.
+   - For lists of more than 5 items, you MUST format the data as a beautifully styled Markdown table.
+   - If you cannot accurately find all requested items, state the search limitations explicitly.
    
-   Second, at the very end of your response, append a JSON block containing the ACTUAL data for a relevant chart.
+   Second, at the very end of your response, append a JSON block containing the ACTUAL data for a highly aesthetic, Instagram-ready infographic chart.
    
 If the user queries a single company, provide a 5-Year Financial Trend (Line chart).
-If the user queries a list or comparison (e.g., "top stocks"), provide a comparison chart of the top 5-10 items (Bar chart).
+If the user queries a list or comparison, provide a comparison chart of the top 5-10 items (Bar chart).
 
-Use this exact JSON structure, replacing the sample data with the REAL data you found:
+Use this exact JSON structure, replacing the sample data with REAL data:
 \`\`\`json
 {
-  "chartTitle": "5-Year Financial Trend",
-  "chartType": "line", // use "line" for time-series, "bar" for comparisons
-  "xAxisKey": "year", // the key used for the x-axis (e.g., "year", "ticker", "company")
+  "chartTitle": "CATCHY BOLD INSTAGRAM-READY TITLE (e.g. 'The Trillion Dollar Race')",
+  "chartType": "line",
+  "xAxisKey": "year",
   "chartUnit": "Billions USD",
   "series": [
     { "key": "revenue", "name": "Revenue", "color": "#ffffff" },
-    { "key": "netIncome", "name": "Net Income", "color": "#666666" }
+    { "key": "netIncome", "name": "Net Income", "color": "#888888" }
   ],
   "data": [
     { "year": "2019", "revenue": 100.5, "netIncome": 20.1 },
     { "year": "2020", "revenue": 110.2, "netIncome": 25.4 }
   ],
   "highlights": [
-    { "label": "Market Cap", "value": "$3.2T" },
-    { "label": "5Yr Return", "value": "+145%" },
-    { "label": "Avg Net Profit", "value": "$80B" },
-    { "label": "P/E Ratio", "value": "24.5" }
+    { "label": "Key Metric 1", "value": "$3.2T" },
+    { "label": "Key Metric 2", "value": "+145%" },
+    { "label": "Key Metric 3", "value": "$80B" },
+    { "label": "Key Metric 4", "value": "24.5" }
   ],
-  "keyInsight": "A single sentence analytical takeaway from the data."
+  "keyInsight": "Punchy, Instagram-caption style insight that summarizes the 'So What?' factor."
 }
 \`\`\`
 If chart data is unavailable, provide an empty array for data.`,
@@ -219,30 +219,70 @@ If chart data is unavailable, provide an empty array for data.`,
         <motion.div 
           layout 
           className={cn(
-            "w-full transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] print:hidden",
-            status === 'idle' ? "mt-[25vh]" : "mt-0"
+            "w-full transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] print:hidden relative",
+            status === 'idle' ? "mt-[20vh]" : "mt-0"
           )}
         >
+          {status === 'idle' && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+              className="mb-10"
+            >
+              <h1 className="text-5xl md:text-7xl font-light tracking-tight mb-4 text-white">
+                Market <span className="text-white/40">Intelligence</span>
+              </h1>
+              <p className="text-lg text-white/40 font-light tracking-wide">
+                Professional-grade financial research and charting in seconds.
+              </p>
+            </motion.div>
+          )}
+
           <form onSubmit={handleSubmit} className="relative group">
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Enter a stock ticker, company, or market trend..."
-              className="w-full bg-transparent border-b border-white/20 pb-4 text-3xl md:text-5xl font-light text-white placeholder:text-white/20 focus:outline-none focus:border-white/80 transition-colors pr-16 rounded-none"
+              className="w-full bg-transparent border-b border-white/20 pb-4 text-3xl md:text-5xl font-light text-white placeholder:text-white/20 focus:outline-none focus:border-white/80 transition-colors pr-16 rounded-none relative z-10"
               disabled={status === 'loading'}
             />
+            {/* Subtle active border effect */}
+            <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-white group-focus-within:w-full transition-all duration-700 ease-out z-20"></div>
+
             <button 
               type="submit" 
               disabled={!query.trim() || status === 'loading'}
-              className="absolute right-0 bottom-4 text-white/30 hover:text-white transition-colors disabled:opacity-30 disabled:hover:text-white/30"
+              className="absolute right-0 bottom-4 text-white/30 hover:text-white transition-colors disabled:opacity-30 disabled:hover:text-white/30 z-30"
             >
-              {status === 'loading' ? <Loader2 className="w-10 h-10 animate-spin" /> : <ArrowRight className="w-10 h-10" />}
+              {status === 'loading' ? <Loader2 className="w-8 h-8 md:w-10 md:h-10 animate-spin" /> : <ArrowRight className="w-8 h-8 md:w-10 md:h-10" strokeWidth={1} />}
             </button>
           </form>
 
-          {/* Loading State */}
           <AnimatePresence mode="wait">
+            {status === 'idle' && (
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -10 }}
+                className="mt-8 flex flex-wrap gap-2 md:gap-3"
+              >
+                {["Top 10 Japanese Tech Stocks by Net Profit", "5-Year Performance of US Airlines", "Nvidia vs AMD Fundamentals", "Global Renewables Market Overview"].map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => { 
+                      setQuery(prompt); 
+                      setTimeout(() => {
+                        const form = document.querySelector('form');
+                        form?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                      }, 50);
+                    }}
+                    className="text-[11px] md:text-xs font-mono text-white/40 border border-white/10 px-4 py-2 rounded-full hover:bg-white/10 hover:text-white transition-all bg-[#0a0a0a] active:scale-95"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+            
             {status === 'loading' && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -309,49 +349,63 @@ If chart data is unavailable, provide an empty array for data.`,
                 </div>
 
                 {chartData && chartData.length > 0 && chartConfig && (
-                  <div className="mb-16 print:hidden flex justify-center w-full">
-                    <div ref={chartRef} className="w-full max-w-xl bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 md:p-10 aspect-[4/5] flex flex-col relative overflow-hidden shadow-2xl">
+                  <div className="mb-20 print:hidden flex justify-center w-full">
+                    <div ref={chartRef} className="w-full max-w-xl bg-[#030303] border border-white/10 p-8 sm:p-12 aspect-[4/5] flex flex-col relative overflow-hidden shadow-2xl">
                       
+                      {/* Technical Grid Background */}
+                      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
+                      
+                      {/* Subtle Background Glow */}
+                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-[100px] pointer-events-none z-0" />
+                      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-white/[0.03] rounded-full blur-[120px] pointer-events-none z-0" />
+
                       {/* Header */}
-                      <div className="flex items-center justify-between mb-6 pb-6 border-b border-white/10 flex-none shrink-0">
-                        <div className="flex items-center space-x-4">
-                          <h1 className="text-xl font-mono tracking-widest text-white/90 uppercase">ASET</h1>
-                          <div className="w-px h-5 bg-white/20"></div>
-                          <p className="text-xs font-light text-white/50 uppercase tracking-widest max-w-[140px] md:max-w-xs truncate">{query}</p>
+                      <div className="flex items-center justify-between mb-10 pb-6 border-b border-white/10 flex-none shrink-0 relative z-10">
+                        <div className="flex items-center space-x-3">
+                          <h1 className="text-lg font-mono tracking-widest text-white uppercase font-bold">ASET</h1>
+                          <div className="w-px h-4 bg-white/20"></div>
+                          <p className="text-[10px] sm:text-xs font-mono text-white/50 uppercase tracking-widest max-w-[140px] md:max-w-[200px] truncate">{query}</p>
                         </div>
-                        <p className="text-xs font-mono text-white/30 text-right shrink-0">{new Date().toLocaleDateString()}</p>
+                        <p className="text-[10px] sm:text-xs font-mono text-white/40 text-right shrink-0">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</p>
                       </div>
 
                       {/* Main Title */}
-                      <div className="mb-6 flex-none shrink-0">
-                        <h3 className="text-xl md:text-2xl font-light text-white mb-2">{chartConfig.chartTitle || 'Financial Data'}</h3>
-                        <span className="text-xs font-mono text-white/40 uppercase tracking-widest">{chartConfig.chartUnit || ''}</span>
+                      <div className="mb-10 flex-none shrink-0 relative z-10 w-full">
+                        <h3 className="text-3xl sm:text-4xl font-light text-white tracking-tight mb-4 leading-tight">{chartConfig.chartTitle || 'Market Analysis'}</h3>
+                        <span className="inline-block text-[10px] sm:text-[11px] font-mono text-white/60 uppercase tracking-widest bg-white/[0.03] px-3 py-1.5 rounded border border-white/10">{chartConfig.chartUnit || 'METRIC'}</span>
                       </div>
                       
                       {/* Highlights Grid */}
                       {chartConfig.highlights && chartConfig.highlights.length > 0 && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 flex-none shrink-0">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-10 flex-none shrink-0 relative z-10 w-full">
                           {chartConfig.highlights.map((h: any, i: number) => (
-                            <div key={i} className="flex flex-col border-l border-white/10 pl-3">
-                              <span className="text-[9px] md:text-[10px] font-mono text-white/40 uppercase tracking-wider mb-1">{h.label}</span>
-                              <span className="text-base md:text-lg font-light text-white">{h.value}</span>
+                            <div key={i} className="flex flex-col border-l-2 border-white/10 pl-4 py-1">
+                              <span className="text-[9px] sm:text-[10px] font-mono text-white/40 uppercase tracking-widest mb-1.5">{h.label}</span>
+                              <span className="text-xl sm:text-2xl font-light text-white tracking-tight">{h.value}</span>
                             </div>
                           ))}
                         </div>
                       )}
 
                       {/* Chart */}
-                      <div className="flex-1 w-full min-h-0 relative mb-4">
+                      <div className="flex-1 w-full min-h-0 relative mb-8 z-10">
                         <ResponsiveContainer width="100%" height="100%">
                           {chartConfig.chartType === 'bar' ? (
-                            <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                               <XAxis 
                                 dataKey={chartConfig.xAxisKey || 'year'} 
                                 stroke="#333" 
-                                tick={{ fill: '#666', fontSize: 10, fontFamily: 'monospace' }} 
+                                tick={{ fill: '#666', fontSize: 11, fontFamily: 'monospace' }} 
                                 tickLine={false}
                                 axisLine={false}
                                 dy={10}
+                              />
+                              <YAxis 
+                                stroke="#333" 
+                                tick={{ fill: '#555', fontSize: 10, fontFamily: 'monospace' }}
+                                tickLine={false}
+                                axisLine={false}
+                                tickFormatter={(value) => value.toLocaleString()}
                               />
                               <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1a1a1a' }} />
                               {chartConfig.series?.map((s: any, i: number) => (
@@ -359,21 +413,28 @@ If chart data is unavailable, provide an empty array for data.`,
                                   key={s.key}
                                   dataKey={s.key} 
                                   name={s.name}
-                                  fill={s.color || (i === 0 ? '#ffffff' : '#666666')} 
-                                  radius={[4, 4, 0, 0]}
-                                  maxBarSize={50}
+                                  fill={s.color || (i === 0 ? '#ffffff' : '#444444')} 
+                                  radius={[2, 2, 0, 0]}
+                                  maxBarSize={48}
                                 />
                               ))}
                             </BarChart>
                           ) : (
-                            <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                               <XAxis 
                                 dataKey={chartConfig.xAxisKey || 'year'} 
                                 stroke="#333" 
-                                tick={{ fill: '#666', fontSize: 10, fontFamily: 'monospace' }} 
+                                tick={{ fill: '#666', fontSize: 11, fontFamily: 'monospace' }} 
                                 tickLine={false}
                                 axisLine={false}
                                 dy={10}
+                              />
+                              <YAxis 
+                                stroke="#333" 
+                                tick={{ fill: '#555', fontSize: 10, fontFamily: 'monospace' }}
+                                tickLine={false}
+                                axisLine={false}
+                                tickFormatter={(value) => value.toLocaleString()}
                               />
                               <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#333', strokeWidth: 1, strokeDasharray: '4 4' }} />
                               {chartConfig.series?.map((s: any, i: number) => (
@@ -382,10 +443,10 @@ If chart data is unavailable, provide an empty array for data.`,
                                   type="monotone" 
                                   dataKey={s.key} 
                                   name={s.name}
-                                  stroke={s.color || (i === 0 ? '#ffffff' : '#666666')} 
-                                  strokeWidth={2} 
-                                  dot={false}
-                                  activeDot={{ r: 4, fill: s.color || (i === 0 ? '#ffffff' : '#666666'), stroke: '#000', strokeWidth: 2 }}
+                                  stroke={s.color || (i === 0 ? '#ffffff' : '#444444')} 
+                                  strokeWidth={3} 
+                                  dot={{ fill: '#030303', stroke: s.color || (i === 0 ? '#ffffff' : '#444444'), strokeWidth: 2, r: 4 }}
+                                  activeDot={{ r: 6, fill: '#fff', stroke: '#000', strokeWidth: 2 }}
                                 />
                               ))}
                             </LineChart>
@@ -395,9 +456,9 @@ If chart data is unavailable, provide an empty array for data.`,
 
                       {/* Insight / Details at Bottom */}
                       {chartConfig.keyInsight && (
-                        <div className="mt-auto pt-4 border-t border-white/10 flex-none shrink-0">
-                          <p className="text-xs md:text-sm font-light text-white/70 leading-relaxed italic border-l-2 border-white/20 pl-4">
-                            <span className="text-white/90 font-medium not-italic mr-2">Insight:</span> 
+                        <div className="mt-auto pt-6 border-t border-white/10 flex-none shrink-0 relative z-10 w-full">
+                          <p className="text-xs sm:text-[14px] font-light text-white/80 leading-relaxed max-w-[90%]">
+                            <span className="inline-block text-white font-mono text-[9px] uppercase tracking-widest mr-3 bg-white/10 px-2 py-1 rounded-sm align-middle">Insight</span> 
                             {chartConfig.keyInsight}
                           </p>
                         </div>
@@ -408,15 +469,16 @@ If chart data is unavailable, provide an empty array for data.`,
 
                 <div className="prose prose-invert prose-lg max-w-none 
                   prose-headings:font-light prose-headings:tracking-tight
-                  prose-h1:text-4xl prose-h1:mb-8
-                  prose-h2:text-2xl prose-h2:mt-16 prose-h2:mb-6 prose-h2:border-b prose-h2:border-white/10 prose-h2:pb-4 
+                  prose-h1:text-4xl prose-h1:mb-8 prose-h1:font-medium
+                  prose-h2:text-2xl prose-h2:mt-16 prose-h2:mb-6 prose-h2:border-b prose-h2:border-white/10 prose-h2:pb-4 prose-h2:font-medium
                   prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-4
                   prose-p:text-white/70 prose-p:leading-relaxed
-                  prose-li:text-white/70
-                  prose-strong:text-white prose-strong:font-medium
+                  prose-li:text-white/70 prose-li:marker:text-white/30
+                  prose-strong:text-white prose-strong:font-semibold
                   prose-a:text-white hover:prose-a:text-white/80 prose-a:underline-offset-4 prose-a:decoration-white/30
                   prose-hr:border-white/10 prose-hr:my-12
-                  prose-blockquote:border-l-white/20 prose-blockquote:text-white/60 prose-blockquote:font-light prose-blockquote:italic">
+                  prose-table:w-full prose-table:text-sm prose-th:bg-white/[0.02] prose-th:px-4 prose-th:py-3 prose-th:font-medium prose-th:text-left prose-td:px-4 prose-td:py-3 prose-td:border-b prose-td:border-white/5
+                  prose-blockquote:border-l-white/20 prose-blockquote:bg-white/5 border-white/10 prose-blockquote:py-1 prose-blockquote:px-6 prose-blockquote:rounded-r-lg prose-blockquote:text-white/80 prose-blockquote:font-light">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {report}
                   </ReactMarkdown>
