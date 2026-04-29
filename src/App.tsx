@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, ExternalLink, Loader2, FileText } from 'lucide-react';
+import { ArrowRight, ExternalLink, Loader2, FileText, Image as ImageIcon } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import generatePDF from 'react-to-pdf';
+import { toPng } from 'html-to-image';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, Tooltip } from 'recharts';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -21,7 +22,37 @@ export default function App() {
   const [chartConfig, setChartConfig] = useState<any>(null);
   const [sources, setSources] = useState<Array<{uri: string, title: string}>>([]);
   const [loadingText, setLoadingText] = useState('Initializing secure connection...');
-  const targetRef = useRef(null);
+  const targetRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const downloadInfographic = async () => {
+    if (!chartRef.current) return;
+    try {
+      setIsExporting(true);
+      // Give React time to apply any conditional UI before capturing
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const dataUrl = await toPng(chartRef.current, { 
+        quality: 1, 
+        pixelRatio: 2, 
+        backgroundColor: '#0a0a0a',
+        style: {
+          margin: '0',
+          padding: '32px',
+          borderRadius: '0'
+        }
+      });
+      const link = document.createElement('a');
+      link.download = `${query.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_infographic.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to export infographic:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const loadingMessages = [
     'Connecting to official exchanges...',
@@ -60,29 +91,23 @@ export default function App() {
         model: 'gemini-3.1-pro-preview',
         contents: query,
         config: {
+          maxOutputTokens: 8192,
           systemInstruction: `You are an elite financial analyst. Create an in-depth, highly professional market analysis report based on the user's request.
           
 CRITICAL INSTRUCTIONS:
-1. You MUST use the Google Search tool to gather the most up-to-date, official data.
-2. Prioritize data from official stock exchanges (NYSE, NASDAQ, LSE, etc.), official company investor relations websites, official company social media accounts, and top-tier, genuine financial news organizations (Bloomberg, Reuters, CNBC, WSJ).
-3. Strictly EXCLUDE rumors, unverified sources, and fake news. Rely ONLY on genuine source information.
+1. You MUST use the Google Search tool to gather the most up-to-date, official data. You are tasked with providing Worldwide Stock Analysis. Support any global exchange (NYSE, NASDAQ, LSE, TSE, SSE, etc). If no country is specified, infer the most prominent global entity for that query.
+2. Prioritize data from official stock exchanges, investor relations websites, and top-tier financial news (Bloomberg, Reuters, CNBC, WSJ).
+3. Strictly EXCLUDE rumors and fake news. Rely ONLY on genuine source information. DO NOT hallucinate financial figures. If a specific data point is unavailable, explicitly state "N/A" or "Data Unavailable".
 4. Format the output as a comprehensive Markdown report.
-5. You MUST include detailed financial data, specifically:
-   - Last 5 years of Net Profit
-   - Current Market Capitalization
-   - Total Debt and Debt-to-Equity ratios
-   - Other relevant detailed financial metrics
-6. Include the following sections where applicable:
-   - Executive Summary
-   - Current Market Data & Pricing
-   - 5-Year Financial Overview (Profit, Cap, Debt)
-   - Fundamental Analysis
-   - Technical Overview
-   - Recent Catalysts & Official News
-   - Outlook & Conclusion
+5. Provide the specific financial metrics requested by the user. If none are specified, default to: Net Profit, Market Capitalization, and Debt ratios.
+6. Include relevant analytical sections (Executive Summary, Market Data, Fundamental Analysis, etc.) where applicable.
 7. Maintain an objective, highly analytical, and professional tone.
 8. You MUST output your response in two parts:
-   First, the comprehensive Markdown report.
+   First, the comprehensive Markdown report. 
+   - If the user asks for a specific number of items (e.g., "top 99", "list 50"), you MUST attempt to list ALL of them.
+   - For lists of more than 5 items, you MUST format the data as a Markdown table for readability.
+   - If you cannot accurately find all requested items (e.g., exactly 99), provide as many accurate ones as you can find and explicitly state the search limitations. Accuracy is more important than hitting the exact number with fake data.
+   
    Second, at the very end of your response, append a JSON block containing the ACTUAL data for a relevant chart.
    
 If the user queries a single company, provide a 5-Year Financial Trend (Line chart).
@@ -250,6 +275,16 @@ If chart data is unavailable, provide an empty array for data.`,
                   <p className="text-2xl font-light text-white/90">{query}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                  {chartData && chartData.length > 0 && chartConfig && (
+                    <button
+                      onClick={downloadInfographic}
+                      disabled={isExporting}
+                      className="flex items-center gap-3 px-6 py-3 rounded-full border border-white/20 hover:bg-white hover:text-black transition-all duration-300 text-sm font-medium shrink-0 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-white"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      {isExporting ? 'Exporting...' : 'Export Infographic'}
+                    </button>
+                  )}
                   <button
                     onClick={() => generatePDF(targetRef, { filename: `${query.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_analysis.pdf` })}
                     className="flex items-center gap-3 px-6 py-3 rounded-full border border-white/20 hover:bg-white hover:text-black transition-all duration-300 text-sm font-medium shrink-0"
@@ -267,12 +302,17 @@ If chart data is unavailable, provide an empty array for data.`,
                 </div>
 
                 {chartData && chartData.length > 0 && chartConfig && (
-                  <div className="mb-16 border border-white/10 rounded-2xl p-6 bg-[#0a0a0a] print:hidden">
+                  <div ref={chartRef} className="mb-16 border border-white/10 rounded-2xl p-6 md:p-8 bg-[#0a0a0a] print:hidden">
+                    <div className="flex items-center space-x-4 mb-8 pb-8 border-b border-white/10">
+                      <h1 className="text-xl font-mono tracking-widest text-white/50 uppercase">ASET</h1>
+                      <div className="w-px h-6 bg-white/10"></div>
+                      <p className="text-sm font-light text-white/70 max-w-md truncate">{query}</p>
+                    </div>
                     <div className="flex items-center justify-between mb-8">
                       <h3 className="text-xs font-mono text-white/40 uppercase tracking-widest">{chartConfig.chartTitle || 'Financial Data'}</h3>
                       <span className="text-xs font-mono text-white/30">{chartConfig.chartUnit || ''}</span>
                     </div>
-                    <div className="h-[300px] w-full">
+                    <div className="h-[400px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         {chartConfig.chartType === 'bar' ? (
                           <BarChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
