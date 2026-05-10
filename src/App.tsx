@@ -86,10 +86,9 @@ export default function App() {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
+        model: 'gemini-3-flash-preview',
         contents: query,
         config: {
-          maxOutputTokens: 8192,
           systemInstruction: `You are an elite, highly analytical intelligence system. Create an extremely in-depth, expansive, and professional-grade analysis report based on the user's request.
           
 CRITICAL INSTRUCTIONS:
