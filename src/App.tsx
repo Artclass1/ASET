@@ -9,6 +9,8 @@ import { twMerge } from 'tailwind-merge';
 import generatePDF from 'react-to-pdf';
 import { toPng } from 'html-to-image';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -22,32 +24,40 @@ export default function App() {
   const [chartConfig, setChartConfig] = useState<any>(null);
   const [loadingText, setLoadingText] = useState('Initializing secure connection...');
   const targetRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<HTMLDivElement>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  const downloadInfographic = async () => {
-    if (!chartRef.current) return;
+  const downloadCarousel = async () => {
+    if (!carouselRef.current) return;
     try {
       setIsExporting(true);
       // Give React time to apply any conditional UI before capturing
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      const dataUrl = await toPng(chartRef.current, { 
-        quality: 1, 
-        pixelRatio: 3, 
-        backgroundColor: '#030303',
-        style: {
-          margin: '0',
-          padding: '32px',
-          borderRadius: '0'
-        }
-      });
-      const link = document.createElement('a');
-      link.download = `${query.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_infographic.png`;
-      link.href = dataUrl;
-      link.click();
+      const zip = new JSZip();
+      const slides = carouselRef.current.querySelectorAll('.carousel-slide');
+      
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i] as HTMLElement;
+        const dataUrl = await toPng(slide, { 
+          quality: 1, 
+          pixelRatio: 3, 
+          backgroundColor: '#030303',
+          style: {
+            margin: '0',
+            padding: '32px',
+            borderRadius: '0',
+            transform: 'none' // reset any snap scrolling transforms if needed
+          }
+        });
+        const base64Data = dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
+        zip.file(`slide_${i + 1}.png`, base64Data, {base64: true});
+      }
+
+      const content = await zip.generateAsync({type:"blob"});
+      saveAs(content, `${query.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_carousel.zip`);
     } catch (err) {
-      console.error('Failed to export infographic:', err);
+      console.error('Failed to export carousel:', err);
     } finally {
       setIsExporting(false);
     }
@@ -86,9 +96,10 @@ export default function App() {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.1-pro-preview',
         contents: query,
         config: {
+          maxOutputTokens: 8192,
           systemInstruction: `You are an elite, highly analytical intelligence system. Create an extremely in-depth, expansive, and professional-grade analysis report based on the user's request.
           
 CRITICAL INSTRUCTIONS:
@@ -263,12 +274,12 @@ If chart data is unavailable, provide an empty array for data.`,
                 <div className="flex flex-wrap items-center gap-3">
                   {chartData && chartData.length > 0 && chartConfig && (
                     <button
-                      onClick={downloadInfographic}
+                      onClick={downloadCarousel}
                       disabled={isExporting}
                       className="flex items-center gap-3 px-6 py-3 rounded-full border border-white/20 hover:bg-white hover:text-black transition-all duration-300 text-sm font-medium shrink-0 disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-white"
                     >
                       <ImageIcon className="w-4 h-4" />
-                      {isExporting ? 'Exporting...' : 'Export Infographic'}
+                      {isExporting ? 'Exporting ZIP...' : 'Export Carousel (ZIP)'}
                     </button>
                   )}
                   <button
@@ -288,118 +299,110 @@ If chart data is unavailable, provide an empty array for data.`,
                 </div>
 
                 {chartData && chartData.length > 0 && chartConfig && (
-                  <div className="mb-20 print:hidden flex justify-center w-full">
-                    <div ref={chartRef} className="w-full max-w-xl bg-[#030303] border border-white/10 p-8 sm:p-12 aspect-[4/5] flex flex-col relative overflow-hidden shadow-2xl">
+                  <div className="mb-20 print:hidden mx-auto w-full max-w-xl relative group">
+                    <div className="absolute top-1/2 -left-4 md:-left-12 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                       <span className="text-white/20 font-mono text-xs rotate-[-90deg] block">SWIPE</span>
+                    </div>
+                    <div ref={carouselRef} className="flex overflow-x-auto snap-x snap-mandatory gap-6 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                       
-                      {/* Technical Grid Background */}
-                      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
-                      
-                      {/* Subtle Background Glow */}
-                      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-[100px] pointer-events-none z-0" />
-                      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-white/[0.03] rounded-full blur-[120px] pointer-events-none z-0" />
-
-                      {/* Header */}
-                      <div className="flex items-center justify-between mb-10 pb-6 border-b border-white/10 flex-none shrink-0 relative z-10">
-                        <div className="flex items-center space-x-3">
-                          <h1 className="text-lg font-mono tracking-widest text-white uppercase font-bold">REPORT</h1>
-                          <div className="w-px h-4 bg-white/20"></div>
-                          <p className="text-[10px] sm:text-xs font-mono text-white/50 uppercase tracking-widest max-w-[140px] md:max-w-[200px] truncate">{query}</p>
+                      {/* Slide 1: Title & Highlights */}
+                      <div className="carousel-slide w-full shrink-0 snap-center bg-[#030303] border border-white/10 p-8 sm:p-12 aspect-[4/5] flex flex-col relative overflow-hidden shadow-2xl">
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
+                        <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-white/[0.04] rounded-full blur-[100px] pointer-events-none z-0" />
+                        
+                        <div className="flex items-center justify-between mb-auto pb-6 border-b border-white/10 relative z-10">
+                          <div className="flex items-center space-x-3">
+                            <h1 className="text-lg font-mono tracking-widest text-white uppercase font-bold">REPORT</h1>
+                            <div className="w-px h-4 bg-white/20"></div>
+                            <p className="text-[10px] sm:text-xs font-mono text-white/50 uppercase tracking-widest max-w-[140px] md:max-w-[200px] truncate">{query}</p>
+                          </div>
+                          <p className="text-[10px] sm:text-xs font-mono text-white/40">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</p>
                         </div>
-                        <p className="text-[10px] sm:text-xs font-mono text-white/40 text-right shrink-0">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</p>
-                      </div>
-
-                      {/* Main Title */}
-                      <div className="mb-10 flex-none shrink-0 relative z-10 w-full">
-                        <h3 className="text-3xl sm:text-4xl font-light text-white tracking-tight mb-4 leading-tight">{chartConfig.chartTitle || 'Market Analysis'}</h3>
-                        <span className="inline-block text-[10px] sm:text-[11px] font-mono text-white/60 uppercase tracking-widest bg-white/[0.03] px-3 py-1.5 rounded border border-white/10">{chartConfig.chartUnit || 'METRIC'}</span>
-                      </div>
-                      
-                      {/* Highlights Grid */}
-                      {chartConfig.highlights && chartConfig.highlights.length > 0 && (
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-10 flex-none shrink-0 relative z-10 w-full">
-                          {chartConfig.highlights.map((h: any, i: number) => (
-                            <div key={i} className="flex flex-col border-l-2 border-white/10 pl-4 py-1">
-                              <span className="text-[9px] sm:text-[10px] font-mono text-white/40 uppercase tracking-widest mb-1.5">{h.label}</span>
-                              <span className="text-xl sm:text-2xl font-light text-white tracking-tight">{h.value}</span>
+                        
+                        <div className="my-auto relative z-10 w-full">
+                          <h3 className="text-4xl sm:text-5xl font-light text-white tracking-tight mb-8 leading-[1.1]">{chartConfig.chartTitle || 'Market Analysis'}</h3>
+                          <div className="w-12 h-1 bg-white/20 mb-12"></div>
+                          
+                          {chartConfig.highlights && chartConfig.highlights.length > 0 && (
+                            <div className="grid grid-cols-2 gap-y-10 gap-x-6 w-full">
+                              {chartConfig.highlights.map((h: any, i: number) => (
+                                <div key={i} className="flex flex-col border-l-2 border-white/10 pl-4 py-1">
+                                  <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest mb-2">{h.label}</span>
+                                  <span className="text-3xl font-light text-white tracking-tight">{h.value}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Chart */}
-                      <div className="flex-1 w-full min-h-0 relative mb-8 z-10">
-                        <ResponsiveContainer width="100%" height="100%">
-                          {chartConfig.chartType === 'bar' ? (
-                            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
-                              <XAxis 
-                                dataKey={chartConfig.xAxisKey || 'year'} 
-                                stroke="#333" 
-                                tick={{ fill: '#666', fontSize: 11, fontFamily: 'monospace' }} 
-                                tickLine={false}
-                                axisLine={false}
-                                dy={10}
-                              />
-                              <YAxis 
-                                stroke="#333" 
-                                tick={{ fill: '#555', fontSize: 10, fontFamily: 'monospace' }}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(value) => value.toLocaleString()}
-                              />
-                              <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1a1a1a' }} />
-                              {chartConfig.series?.map((s: any, i: number) => (
-                                <Bar 
-                                  key={s.key}
-                                  dataKey={s.key} 
-                                  name={s.name}
-                                  fill={s.color || (i === 0 ? '#ffffff' : '#444444')} 
-                                  radius={[2, 2, 0, 0]}
-                                  maxBarSize={48}
-                                />
-                              ))}
-                            </BarChart>
-                          ) : (
-                            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
-                              <XAxis 
-                                dataKey={chartConfig.xAxisKey || 'year'} 
-                                stroke="#333" 
-                                tick={{ fill: '#666', fontSize: 11, fontFamily: 'monospace' }} 
-                                tickLine={false}
-                                axisLine={false}
-                                dy={10}
-                              />
-                              <YAxis 
-                                stroke="#333" 
-                                tick={{ fill: '#555', fontSize: 10, fontFamily: 'monospace' }}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(value) => value.toLocaleString()}
-                              />
-                              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#333', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                              {chartConfig.series?.map((s: any, i: number) => (
-                                <Line 
-                                  key={s.key}
-                                  type="monotone" 
-                                  dataKey={s.key} 
-                                  name={s.name}
-                                  stroke={s.color || (i === 0 ? '#ffffff' : '#444444')} 
-                                  strokeWidth={3} 
-                                  dot={{ fill: '#030303', stroke: s.color || (i === 0 ? '#ffffff' : '#444444'), strokeWidth: 2, r: 4 }}
-                                  activeDot={{ r: 6, fill: '#fff', stroke: '#000', strokeWidth: 2 }}
-                                />
-                              ))}
-                            </LineChart>
                           )}
-                        </ResponsiveContainer>
+                        </div>
+                        
+                        <div className="mt-auto pt-6 flex justify-end relative z-10">
+                          <span className="text-[9px] font-mono text-white/30 tracking-widest uppercase">SWIPE &rarr;</span>
+                        </div>
                       </div>
 
-                      {/* Insight / Details at Bottom */}
+                      {/* Slide 2: Chart */}
+                      <div className="carousel-slide w-full shrink-0 snap-center bg-[#030303] border border-white/10 p-8 sm:p-12 aspect-[4/5] flex flex-col relative overflow-hidden shadow-2xl">
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
+                        <div className="absolute bottom-[-20%] left-[-20%] w-[70%] h-[70%] bg-white/[0.03] rounded-full blur-[120px] pointer-events-none z-0" />
+                        
+                        <div className="flex items-center justify-between mb-8 relative z-10">
+                          <span className="inline-block text-[10px] sm:text-[11px] font-mono text-white/60 uppercase tracking-widest bg-white/[0.03] px-3 py-1.5 rounded border border-white/10">{chartConfig.chartUnit || 'METRIC'}</span>
+                          <span className="text-[10px] font-mono text-white/30 tracking-widest uppercase">{query}</span>
+                        </div>
+                        
+                        <div className="flex-1 w-full min-h-0 relative z-10 mb-6">
+                          <ResponsiveContainer width="100%" height="100%">
+                            {chartConfig.chartType === 'bar' ? (
+                              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                                <XAxis dataKey={chartConfig.xAxisKey || 'year'} stroke="#333" tick={{ fill: '#666', fontSize: 11, fontFamily: 'monospace' }} tickLine={false} axisLine={false} dy={10} />
+                                <YAxis stroke="#333" tick={{ fill: '#555', fontSize: 10, fontFamily: 'monospace' }} tickLine={false} axisLine={false} tickFormatter={(value) => value.toLocaleString()} />
+                                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1a1a1a' }} />
+                                {chartConfig.series?.map((s: any, i: number) => (
+                                  <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color || (i === 0 ? '#ffffff' : '#444444')} radius={[2, 2, 0, 0]} maxBarSize={48} />
+                                ))}
+                              </BarChart>
+                            ) : (
+                              <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                                <XAxis dataKey={chartConfig.xAxisKey || 'year'} stroke="#333" tick={{ fill: '#666', fontSize: 11, fontFamily: 'monospace' }} tickLine={false} axisLine={false} dy={10} />
+                                <YAxis stroke="#333" tick={{ fill: '#555', fontSize: 10, fontFamily: 'monospace' }} tickLine={false} axisLine={false} tickFormatter={(value) => value.toLocaleString()} />
+                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#333', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                                {chartConfig.series?.map((s: any, i: number) => (
+                                  <Line key={s.key} type="monotone" dataKey={s.key} name={s.name} stroke={s.color || (i === 0 ? '#ffffff' : '#444444')} strokeWidth={3} dot={{ fill: '#030303', stroke: s.color || (i === 0 ? '#ffffff' : '#444444'), strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#fff', stroke: '#000', strokeWidth: 2 }} />
+                                ))}
+                              </LineChart>
+                            )}
+                          </ResponsiveContainer>
+                        </div>
+                        
+                        <div className="mt-auto pt-6 flex justify-between items-center border-t border-white/10 relative z-10 w-full">
+                          <span className="text-[9px] font-mono text-white/30 tracking-widest uppercase truncate max-w-[200px]">DATA OVERVIEW</span>
+                          <span className="text-[9px] font-mono text-white/30 tracking-widest uppercase">SWIPE &rarr;</span>
+                        </div>
+                      </div>
+
+                      {/* Slide 3: Insight */}
                       {chartConfig.keyInsight && (
-                        <div className="mt-auto pt-6 border-t border-white/10 flex-none shrink-0 relative z-10 w-full">
-                          <p className="text-xs sm:text-[14px] font-light text-white/80 leading-relaxed max-w-[90%]">
-                            <span className="inline-block text-white font-mono text-[9px] uppercase tracking-widest mr-3 bg-white/10 px-2 py-1 rounded-sm align-middle">Insight</span> 
-                            {chartConfig.keyInsight}
-                          </p>
+                       <div className="carousel-slide w-full shrink-0 snap-center bg-[#030303] border border-white/10 p-8 sm:p-12 aspect-[4/5] flex flex-col relative overflow-hidden shadow-2xl">
+                          <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
+                          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-white/[0.02] rounded-full blur-[100px] pointer-events-none z-0" />
+                          
+                          <div className="flex items-center justify-between mb-auto pb-6 border-b border-white/10 relative z-10">
+                            <span className="text-white font-mono text-[10px] uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-sm">KEY INSIGHT</span>
+                            <span className="text-[10px] sm:text-xs font-mono text-white/40">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}</span>
+                          </div>
+                          
+                          <div className="my-auto relative z-10 w-full">
+                            <div className="text-4xl text-white/20 mb-6 font-serif">"</div>
+                            <p className="text-xl sm:text-2xl md:text-3xl font-light text-white/90 leading-relaxed tracking-wide">
+                              {chartConfig.keyInsight}
+                            </p>
+                            <div className="text-4xl text-white/20 mt-6 font-serif text-right">"</div>
+                          </div>
+                          
+                          <div className="mt-auto pt-6 flex justify-between items-center border-t border-white/10 relative z-10 w-full">
+                            <span className="text-[9px] font-mono text-white/30 tracking-widest uppercase truncate max-w-[200px]">{query}</span>
+                            <span className="text-[9px] font-mono text-white/30 tracking-widest uppercase">END / SHARE</span>
+                          </div>
                         </div>
                       )}
                     </div>
