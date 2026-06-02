@@ -26,32 +26,65 @@ export default function App() {
   const targetRef = useRef<HTMLDivElement>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  const totalSlides = 1 + (chartData && chartData.length > 0 ? 1 : 0) + (chartConfig?.keyInsight ? 1 : 0);
+
+  const handleCarouselScroll = () => {
+    if (!carouselRef.current) return;
+    const container = carouselRef.current;
+    const scrollPosition = container.scrollLeft;
+    const slideWidth = container.clientWidth;
+    if (slideWidth > 0) {
+      const newIndex = Math.round(scrollPosition / slideWidth);
+      if (newIndex !== activeSlide && newIndex >= 0 && newIndex < totalSlides) {
+        setActiveSlide(newIndex);
+      }
+    }
+  };
+
+  const scrollToSlide = (index: number) => {
+    if (!carouselRef.current) return;
+    const slides = carouselRef.current.querySelectorAll('.carousel-slide');
+    if (slides[index]) {
+      slides[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      setActiveSlide(index);
+    }
+  };
 
   const downloadCarousel = async () => {
     if (!carouselRef.current) return;
     try {
       setIsExporting(true);
-      // Give React time to apply any conditional UI before capturing
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      const originalSlide = activeSlide;
       const zip = new JSZip();
       const slides = carouselRef.current.querySelectorAll('.carousel-slide');
       
       for (let i = 0; i < slides.length; i++) {
         const slide = slides[i] as HTMLElement;
+        // Scroll the slide into view so html-to-image is able to capture the correct rendered style and elements
+        slide.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+        await new Promise(resolve => setTimeout(resolve, 250));
+        
         const dataUrl = await toPng(slide, { 
           quality: 1, 
           pixelRatio: 3, 
           backgroundColor: '#030303',
           style: {
             margin: '0',
-            padding: '32px',
+            padding: '48px',
             borderRadius: '0',
-            transform: 'none' // reset any snap scrolling transforms if needed
+            transform: 'none'
           }
         });
         const base64Data = dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
         zip.file(`slide_${i + 1}.png`, base64Data, {base64: true});
+      }
+
+      // Restore scroll to the original slide
+      if (slides[originalSlide]) {
+        slides[originalSlide].scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+        setActiveSlide(originalSlide);
       }
 
       const content = await zip.generateAsync({type:"blob"});
@@ -200,7 +233,7 @@ If chart data is unavailable, provide an empty array for data.`,
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-white/30 selection:text-white overflow-x-hidden relative">
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-white/30 selection:text-white overflow-x-hidden relative">
       <div className="max-w-5xl mx-auto px-6 py-12 md:py-24 relative z-10 min-h-[calc(100vh-80px)]">
         
         {/* Search Input */}
@@ -208,7 +241,7 @@ If chart data is unavailable, provide an empty array for data.`,
           layout 
           className={cn(
             "w-full transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] print:hidden relative",
-            status === 'idle' ? "mt-[35vh]" : "mt-8"
+            status === 'idle' ? "mt-[35vh]" : "mt-4"
           )}
         >
           <form onSubmit={handleSubmit} className="relative group">
@@ -216,7 +249,7 @@ If chart data is unavailable, provide an empty array for data.`,
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search..."
+              placeholder="Analyze a topic, company, asset, or global trend..."
               className="w-full bg-transparent border-b border-white/20 pb-4 text-3xl md:text-5xl font-light text-white focus:text-white placeholder:text-white/20 focus:outline-none focus:border-white/80 transition-colors pr-16 rounded-none relative z-10"
               disabled={status === 'loading'}
             />
@@ -231,6 +264,17 @@ If chart data is unavailable, provide an empty array for data.`,
               {status === 'loading' ? <Loader2 className="w-8 h-8 md:w-10 md:h-10 animate-spin" /> : <ArrowRight className="w-8 h-8 md:w-10 md:h-10" strokeWidth={1} />}
             </button>
           </form>
+
+          {status === 'idle' && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.3 }}
+              transition={{ delay: 0.1, duration: 1 }}
+              className="mt-6 text-xs font-mono text-white/60 uppercase tracking-widest pl-1"
+            >
+              Institutional Intelligence Engine · ASET v1.2
+            </motion.p>
+          )}
 
           <AnimatePresence mode="wait">
             {status === 'loading' && (
@@ -272,6 +316,19 @@ If chart data is unavailable, provide an empty array for data.`,
                   <p className="text-2xl font-light text-white/90">{query}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setStatus('idle');
+                      setQuery('');
+                      setReport('');
+                      setChartData([]);
+                      setChartConfig(null);
+                      setActiveSlide(0);
+                    }}
+                    className="flex items-center gap-3 px-6 py-3 rounded-full border border-white/15 text-white/60 hover:text-white hover:border-white/40 transition-all duration-300 text-sm font-medium shrink-0"
+                  >
+                    New Analysis
+                  </button>
                   {chartData && chartData.length > 0 && chartConfig && (
                     <button
                       onClick={downloadCarousel}
@@ -292,7 +349,7 @@ If chart data is unavailable, provide an empty array for data.`,
                 </div>
               </div>
 
-              <div className="bg-[#0a0a0a] p-8 -mx-8 rounded-2xl print:p-0 print:mx-0">
+              <div className="bg-[#020202] border border-white/5 p-8 -mx-8 rounded-2xl print:p-0 print:mx-0">
                 <div className="hidden print:block mb-8">
                   <h1 className="text-3xl font-light text-white mb-2">ASET</h1>
                   <p className="text-white/60 font-mono text-sm">Analysis Report: {query}</p>
@@ -300,10 +357,11 @@ If chart data is unavailable, provide an empty array for data.`,
 
                 {chartData && chartData.length > 0 && chartConfig && (
                   <div className="mb-20 print:hidden mx-auto w-full max-w-xl relative group">
-                    <div className="absolute top-1/2 -left-4 md:-left-12 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                       <span className="text-white/20 font-mono text-xs rotate-[-90deg] block">SWIPE</span>
-                    </div>
-                    <div ref={carouselRef} className="flex overflow-x-auto snap-x snap-mandatory gap-6 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    <div 
+                      ref={carouselRef} 
+                      onScroll={handleCarouselScroll}
+                      className="flex overflow-x-auto snap-x snap-mandatory gap-6 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] selection:bg-transparent"
+                    >
                       
                       {/* Slide 1: Title & Highlights */}
                       <div className="carousel-slide w-full shrink-0 snap-center bg-[#030303] border border-white/10 p-8 sm:p-12 aspect-[4/5] flex flex-col relative overflow-hidden shadow-2xl">
@@ -406,6 +464,41 @@ If chart data is unavailable, provide an empty array for data.`,
                         </div>
                       )}
                     </div>
+
+                    {/* Pagination indicators & controls */}
+                    <div className="flex items-center justify-between mt-6 px-1">
+                      <div className="flex items-center space-x-1.5">
+                        {Array.from({ length: totalSlides }).map((_, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => scrollToSlide(idx)}
+                            className={cn(
+                              "h-1 transition-all duration-300 rounded-full",
+                              activeSlide === idx ? "bg-white w-6" : "bg-white/20 w-1.5 hover:bg-white/40"
+                            )}
+                            aria-label={`Go to slide ${idx + 1}`}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <button
+                          disabled={activeSlide === 0}
+                          onClick={() => scrollToSlide(activeSlide - 1)}
+                          className="text-xs font-mono tracking-widest text-white/40 hover:text-white disabled:opacity-20 disabled:hover:text-white/40 transition-colors uppercase"
+                        >
+                          Prev
+                        </button>
+                        <span className="text-[10px] font-mono text-white/20">/</span>
+                        <button
+                          disabled={activeSlide === totalSlides - 1}
+                          onClick={() => scrollToSlide(activeSlide + 1)}
+                          className="text-xs font-mono tracking-widest text-white/40 hover:text-white disabled:opacity-20 disabled:hover:text-white/40 transition-colors uppercase"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+
                   </div>
                 )}
 
