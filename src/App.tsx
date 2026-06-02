@@ -30,18 +30,37 @@ export default function App() {
 
   const totalSlides = 1 + (chartData && chartData.length > 0 ? 1 : 0) + (chartConfig?.keyInsight ? 1 : 0);
 
-  const handleCarouselScroll = () => {
-    if (!carouselRef.current) return;
+  // Use IntersectionObserver to track the active slide reliably and without infinite update loops
+  useEffect(() => {
+    if (!carouselRef.current || status !== 'success') return;
     const container = carouselRef.current;
-    const scrollPosition = container.scrollLeft;
-    const slideWidth = container.clientWidth;
-    if (slideWidth > 0) {
-      const newIndex = Math.round(scrollPosition / slideWidth);
-      if (newIndex !== activeSlide && newIndex >= 0 && newIndex < totalSlides) {
-        setActiveSlide(newIndex);
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !isExporting) {
+            const slide = entry.target as HTMLElement;
+            const slides = Array.from(container.querySelectorAll('.carousel-slide'));
+            const index = slides.indexOf(slide);
+            if (index !== -1) {
+              setActiveSlide(index);
+            }
+          }
+        });
+      },
+      {
+        root: container,
+        threshold: 0.5,
       }
-    }
-  };
+    );
+
+    const slides = container.querySelectorAll('.carousel-slide');
+    slides.forEach((slide) => observer.observe(slide));
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [chartData, chartConfig, isExporting, status]);
 
   const scrollToSlide = (index: number) => {
     if (!carouselRef.current) return;
@@ -359,7 +378,6 @@ If chart data is unavailable, provide an empty array for data.`,
                   <div className="mb-20 print:hidden mx-auto w-full max-w-xl relative group">
                     <div 
                       ref={carouselRef} 
-                      onScroll={handleCarouselScroll}
                       className="flex overflow-x-auto snap-x snap-mandatory gap-6 w-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] selection:bg-transparent"
                     >
                       
