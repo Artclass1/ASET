@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, ExternalLink, Loader2, FileText, Image as ImageIcon } from 'lucide-react';
-import { GoogleGenAI, Type } from '@google/genai';
+import { ArrowRight, ExternalLink, Loader2, FileText, Image as ImageIcon, Github, HelpCircle, ShieldAlert } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import clsx from 'clsx';
@@ -11,6 +10,7 @@ import { toPng } from 'html-to-image';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import PricingModal from './components/PricingModal';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -19,6 +19,7 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 export default function App() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [analysisMode, setAnalysisMode] = useState<'thinking' | 'grounding'>('thinking');
   const [report, setReport] = useState('');
   const [chartData, setChartData] = useState<any[]>([]);
   const [chartConfig, setChartConfig] = useState<any>(null);
@@ -27,6 +28,18 @@ export default function App() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
+
+  // Pay and Use / GitHub Plan states
+  const [plan, setPlan] = useState<'free' | 'pro' | 'enterprise'>(() => {
+    return (localStorage.getItem('aset_plan') as any) || 'free';
+  });
+  const [remainingCredits, setRemainingCredits] = useState<number>(() => {
+    const saved = localStorage.getItem('aset_credits');
+    return saved !== null ? parseInt(saved, 10) : 3;
+  });
+  const [showPricing, setShowPricing] = useState(false);
+  const [criticalError, setCriticalError] = useState<string | null>(null);
+  const [resolvedModel, setResolvedModel] = useState<string>('');
 
   const totalSlides = 1 + (chartData && chartData.length > 0 ? 1 : 0) + (chartConfig?.keyInsight ? 1 : 0);
 
@@ -140,69 +153,35 @@ export default function App() {
     e.preventDefault();
     if (!query.trim() || status === 'loading') return;
 
+    if (plan === 'free' && remainingCredits <= 0) {
+      setCriticalError('Starter free tier credits exhausted. Please upgrade to continue.');
+      setShowPricing(true);
+      return;
+    }
+
+    setCriticalError(null);
     setStatus('loading');
     setReport('');
     setChartData([]);
     setChartConfig(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
-        contents: query,
-        config: {
-          maxOutputTokens: 8192,
-          systemInstruction: `You are an elite, highly analytical intelligence system. Create an extremely in-depth, expansive, and professional-grade analysis report based on the user's request.
-          
-CRITICAL INSTRUCTIONS:
-1. You MUST use the Google Search tool to gather the most up-to-date, official, and authoritative data. You can handle ANY topic (Finance, Technology, Global Markets, Science, etc.).
-2. Prioritize data from authoritative sources relevant to the query (e.g., SEC filings for finance, institutional research, top-tier news).
-3. Strictly EXCLUDE rumors and unverified sources. DO NOT hallucinate facts or figures. Explicitly state "N/A" if data is unavailable.
-4. Format the output as a highly structured, comprehensive Markdown report with professional terminology and analytical rigor. The report must be extremely detailed and go deeply into the specifics of the query.
-5. Provide specific metrics or KPIs relevant to the topic. If financial, include KPIs like ROE, P/E ratio, Market Cap, YoY growth.
-6. Include relevant institutional analytical sections (e.g., "Macroeconomic Context", "Fundamental Drivers", "Key Catalysts", "Risk Factors" or equivalent for non-financial topics).
-7. Maintain an objective, highly analytical, and institutional tone.
-8. You MUST output your response in two parts:
-   First, the comprehensive Markdown report. 
-   - If the user asks for a specific number of items (e.g., "top 99"), attempt to list ALL of them.
-   - For lists of more than 5 items, you MUST format the data as a beautifully styled Markdown table.
-   - If you cannot accurately find all requested items, state the search limitations explicitly.
-   
-   Second, at the very end of your response, append a JSON block containing the ACTUAL data for a highly aesthetic, Instagram-ready infographic chart.
-   
-If the user queries a single entity/topic, provide a line chart showing a trend.
-If the user queries a list or comparison, provide a comparison chart (Bar chart).
-
-Use this exact JSON structure, replacing the sample data with REAL data:
-\`\`\`json
-{
-  "chartTitle": "CATCHY BOLD INSTAGRAM-READY TITLE",
-  "chartType": "line",
-  "xAxisKey": "year",
-  "chartUnit": "Value/Unit",
-  "series": [
-    { "key": "metric1", "name": "Metric 1", "color": "#ffffff" },
-    { "key": "metric2", "name": "Metric 2", "color": "#888888" }
-  ],
-  "data": [
-    { "year": "2019", "metric1": 100.5, "metric2": 20.1 },
-    { "year": "2020", "metric1": 110.2, "metric2": 25.4 }
-  ],
-  "highlights": [
-    { "label": "Key Metric 1", "value": "123" },
-    { "label": "Key Metric 2", "value": "456" },
-    { "label": "Key Metric 3", "value": "789" },
-    { "label": "Key Metric 4", "value": "012" }
-  ],
-  "keyInsight": "Punchy, Instagram-caption style insight that summarizes the 'So What?' factor."
-}
-\`\`\`
-If chart data is unavailable, provide an empty array for data.`,
-          tools: [{ googleSearch: {} }],
-        }
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query, mode: analysisMode }),
       });
 
-      let resultText = response.text || '';
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Request failed');
+      }
+
+      const data = await response.json();
+      setResolvedModel(data.modelUsed || '');
+      let resultText = data.text || '';
       let reportContent = resultText;
       let chartData: any[] = [];
       let chartConfig: any = null;
@@ -225,8 +204,15 @@ If chart data is unavailable, provide an empty array for data.`,
       setChartData(chartData);
       setChartConfig(chartConfig);
       
+      // Deduct account credit if Starter Plan
+      if (plan === 'free') {
+        const nextCredits = Math.max(0, remainingCredits - 1);
+        setRemainingCredits(nextCredits);
+        localStorage.setItem('aset_credits', nextCredits.toString());
+      }
+
       setStatus('success');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       setStatus('error');
     }
@@ -253,6 +239,47 @@ If chart data is unavailable, provide an empty array for data.`,
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-white/30 selection:text-white overflow-x-hidden relative">
+      
+      {/* Premium Header */}
+      <header className="w-full border-b border-white/5 bg-black/40 backdrop-blur-md sticky top-0 z-50 print:hidden select-none">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => {
+            setStatus('idle');
+            setQuery('');
+            setReport('');
+            setChartData([]);
+            setChartConfig(null);
+            setCriticalError(null);
+          }}>
+            <span className="text-sm font-mono font-bold tracking-widest text-white">ASET</span>
+            <span className="text-[10px] bg-white/10 text-white/60 px-2 py-0.5 rounded font-mono font-light">INTELLIGENCE</span>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setShowPricing(true)}
+              className="flex items-center space-x-2 bg-white/5 hover:bg-white/10 border border-white/10 px-3.5 py-1.5 rounded-full transition-colors cursor-pointer"
+            >
+              <div className={cn(
+                "w-1.5 h-1.5 rounded-full",
+                plan === 'free' ? "bg-amber-400" : "bg-emerald-400"
+              )} />
+              <span className="text-[10px] font-mono uppercase tracking-wider text-white/80">
+                {plan === 'free' ? `Starter (${remainingCredits} left)` : `${plan} Mode`}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setShowPricing(true)}
+              className="hidden sm:flex items-center space-x-2 bg-transparent hover:bg-white/5 border border-white/5 hover:border-white/15 px-3.5 py-1.5 rounded-full transition-all cursor-pointer text-white/50 hover:text-white"
+            >
+              <Github className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-mono uppercase tracking-wider">GitHub Push</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
       <div className="max-w-5xl mx-auto px-6 py-12 md:py-24 relative z-10 min-h-[calc(100vh-80px)]">
         
         {/* Search Input */}
@@ -260,9 +287,28 @@ If chart data is unavailable, provide an empty array for data.`,
           layout 
           className={cn(
             "w-full transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] print:hidden relative",
-            status === 'idle' ? "mt-[35vh]" : "mt-4"
+            status === 'idle' ? "mt-[25vh]" : "mt-4"
           )}
         >
+          {criticalError && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between gap-4 max-w-2xl"
+            >
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0" />
+                <p className="text-xs font-mono text-amber-300 leading-relaxed">{criticalError}</p>
+              </div>
+              <button
+                onClick={() => setShowPricing(true)}
+                className="px-3 py-1.5 bg-amber-500 text-black hover:bg-amber-400 rounded-lg text-[10px] font-mono font-bold uppercase shrink-0 transition-colors cursor-pointer"
+              >
+                Upgrade Plan
+              </button>
+            </motion.div>
+          )}
+
           <form onSubmit={handleSubmit} className="relative group">
             <input
               type="text"
@@ -283,6 +329,36 @@ If chart data is unavailable, provide an empty array for data.`,
               {status === 'loading' ? <Loader2 className="w-8 h-8 md:w-10 md:h-10 animate-spin" /> : <ArrowRight className="w-8 h-8 md:w-10 md:h-10" strokeWidth={1} />}
             </button>
           </form>
+
+          {/* Mode Selector */}
+          <div className="flex flex-wrap items-center gap-3 mt-6 pl-1 select-none">
+            <button
+              type="button"
+              onClick={() => setAnalysisMode('thinking')}
+              className={cn(
+                "px-4 py-2 text-[10px] font-mono uppercase tracking-widest transition-all duration-300 border cursor-pointer",
+                analysisMode === 'thinking' 
+                  ? "bg-white text-black border-white font-medium" 
+                  : "bg-transparent text-white/40 border-white/10 hover:text-white/70 hover:border-white/20"
+              )}
+              disabled={status === 'loading'}
+            >
+              Forensic Account Auditing (Thinking)
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnalysisMode('grounding')}
+              className={cn(
+                "px-4 py-2 text-[10px] font-mono uppercase tracking-widest transition-all duration-300 border cursor-pointer",
+                analysisMode === 'grounding' 
+                  ? "bg-white text-black border-white font-medium" 
+                  : "bg-transparent text-white/40 border-white/10 hover:text-white/70 hover:border-white/20"
+              )}
+              disabled={status === 'loading'}
+            >
+              Real-time Grounding (Search Index)
+            </button>
+          </div>
 
           {status === 'idle' && (
             <motion.p
@@ -331,7 +407,15 @@ If chart data is unavailable, provide an empty array for data.`,
             >
               <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-16 border-b border-white/10 pb-8 gap-6 print:hidden">
                 <div>
-                  <h2 className="text-xs font-mono text-white/40 uppercase tracking-widest mb-3">Analysis Report</h2>
+                  <h2 className="text-xs font-mono text-white/40 uppercase tracking-widest mb-3 flex flex-wrap items-center gap-2">
+                    <span>Analysis Report</span>
+                    {resolvedModel && (
+                      <>
+                        <span className="text-white/20">•</span>
+                        <span className="text-emerald-400 font-semibold lowercase">processed via {resolvedModel}</span>
+                      </>
+                    )}
+                  </h2>
                   <p className="text-2xl font-light text-white/90">{query}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -558,9 +642,47 @@ If chart data is unavailable, provide an empty array for data.`,
       </div>
 
       {/* Footer */}
-      <footer className="w-full text-center py-8 text-xs font-mono text-white/20 print:hidden relative z-10">
-        ASET Intelligence &copy; {new Date().getFullYear()}. For demonstration purposes only. Not financial advice.
+      <footer className="w-full text-center py-8 text-xs font-mono text-white/20 print:hidden relative z-10 flex flex-col items-center justify-center gap-2 select-none">
+        <div>
+          ASET Intelligence &copy; {new Date().getFullYear()}. For demonstration purposes only. Not financial advice.
+        </div>
+        <div className="flex gap-4 items-center">
+          <button 
+            onClick={() => {
+              setPlan('free');
+              setRemainingCredits(3);
+              localStorage.setItem('aset_plan', 'free');
+              localStorage.setItem('aset_credits', '3');
+              setCriticalError(null);
+            }} 
+            className="hover:text-white transition-colors cursor-pointer underline decoration-white/10"
+          >
+            Reset Session (Demo Mode)
+          </button>
+          <span>·</span>
+          <button 
+            onClick={() => setShowPricing(true)} 
+            className="hover:text-white transition-colors cursor-pointer underline decoration-white/10"
+          >
+            Upgrade Membership
+          </button>
+        </div>
       </footer>
+
+      {/* Pricing & checkout / GitHub instructions modal */}
+      <AnimatePresence>
+        {showPricing && (
+          <PricingModal
+            isOpen={showPricing}
+            onClose={() => setShowPricing(false)}
+            onSuccess={() => {
+              setPlan('pro');
+              localStorage.setItem('aset_plan', 'pro');
+              setCriticalError(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

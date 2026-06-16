@@ -1,5 +1,6 @@
 {
   "name": "ASET",
   "description": "Minimalist, in-depth stock market analysis tool using real-time official data.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
