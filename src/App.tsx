@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, ExternalLink, Loader2, FileText, Image as ImageIcon, Github, HelpCircle, ShieldAlert } from 'lucide-react';
+import { ArrowRight, ExternalLink, Loader2, FileText, Image as ImageIcon, Github, HelpCircle, ShieldAlert, Lock, Unlock, ShieldCheck, Key, Download, UploadCloud, Fingerprint, FolderOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import clsx from 'clsx';
@@ -11,6 +11,7 @@ import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Tool
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import PricingModal from './components/PricingModal';
+import { encryptPayload, decryptPayload } from './lib/encryption';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return twMerge(clsx(inputs));
@@ -29,6 +30,15 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
 
+  // Cryptographic Vault and payload state
+  const [encryptPassphrase, setEncryptPassphrase] = useState('');
+  const [decryptPassphrase, setDecryptPassphrase] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [vaultError, setVaultError] = useState<string | null>(null);
+  const [showEncryptModal, setShowEncryptModal] = useState(false);
+  const [isEncrypting, setIsEncrypting] = useState(false);
+  const [isDecrypting, setIsDecrypting] = useState(false);
+
   // Pay and Use / GitHub Plan states
   const [plan, setPlan] = useState<'free' | 'pro' | 'enterprise'>(() => {
     return (localStorage.getItem('aset_plan') as any) || 'free';
@@ -40,6 +50,7 @@ export default function App() {
   const [showPricing, setShowPricing] = useState(false);
   const [criticalError, setCriticalError] = useState<string | null>(null);
   const [resolvedModel, setResolvedModel] = useState<string>('');
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   const totalSlides = 1 + (chartData && chartData.length > 0 ? 1 : 0) + (chartConfig?.keyInsight ? 1 : 0);
 
@@ -160,6 +171,7 @@ export default function App() {
     }
 
     setCriticalError(null);
+    setErrorDetails(null);
     setStatus('loading');
     setReport('');
     setChartData([]);
@@ -214,7 +226,68 @@ export default function App() {
       setStatus('success');
     } catch (error: any) {
       console.error(error);
+      setErrorDetails(error.message || 'An unexpected error occurred while generating the report.');
       setStatus('error');
+    }
+  };
+
+  const handleEncryptAndDownload = async () => {
+    if (!encryptPassphrase.trim()) return;
+    setIsEncrypting(true);
+    try {
+      const payload = {
+        query,
+        report,
+        chartData,
+        chartConfig,
+        resolvedModel,
+        timestamp: new Date().toISOString(),
+        version: 'ASET v1.2 Secure Audit'
+      };
+      const encrypted = await encryptPayload(payload, encryptPassphrase);
+      const blob = new Blob([encrypted], { type: 'text/plain;charset=utf-8' });
+      saveAs(blob, `${query.replace(/[^a-z0-0a-z]/gi, '_').toLowerCase()}_secured.aset`);
+      setShowEncryptModal(false);
+      setEncryptPassphrase('');
+    } catch (err: any) {
+      console.error(err);
+      alert('Encryption download failed: ' + (err.message || err));
+    } finally {
+      setIsEncrypting(false);
+    }
+  };
+
+  const handleDecryptAndRestore = async () => {
+    if (!selectedFile) {
+      setVaultError('Please select an encrypted audit file (.aset).');
+      return;
+    }
+    if (!decryptPassphrase) {
+      setVaultError('Please provide a secure decryption passphrase.');
+      return;
+    }
+    setIsDecrypting(true);
+    setVaultError(null);
+    try {
+      const text = await selectedFile.text();
+      const decrypted = await decryptPayload(text, decryptPassphrase);
+      if (decrypted && decrypted.query && decrypted.report) {
+        setQuery(decrypted.query);
+        setReport(decrypted.report);
+        setChartData(decrypted.chartData || []);
+        setChartConfig(decrypted.chartConfig || null);
+        setResolvedModel(decrypted.resolvedModel || 'ASET Local Vault Restoration');
+        setStatus('success');
+        setDecryptPassphrase('');
+        setSelectedFile(null);
+      } else {
+        setVaultError('Invalid audit payload. Decrypted successfully, but required template structure (query/report) is missing.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setVaultError('Decryption failed. Please verify that the passphrase is correct for this file.');
+    } finally {
+      setIsDecrypting(false);
     }
   };
 
@@ -361,14 +434,119 @@ export default function App() {
           </div>
 
           {status === 'idle' && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.3 }}
-              transition={{ delay: 0.1, duration: 1 }}
-              className="mt-6 text-xs font-mono text-white/60 uppercase tracking-widest pl-1"
-            >
-              Institutional Intelligence Engine · ASET v1.2
-            </motion.p>
+            <div className="mt-12 border border-white/10 bg-white/[0.02] rounded-2xl p-6 md:p-8 max-w-2xl">
+              <div className="flex items-start md:items-center justify-between gap-4 border-b border-white/5 pb-4 mb-6 select-none">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400">
+                    <Fingerprint className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-semibold tracking-wide text-white uppercase font-mono">Cryptographic Local Vault</h3>
+                    <p className="text-[10px] text-white/40 mt-0.5">Secure client-side AES-GCM decryption sandbox</p>
+                  </div>
+                </div>
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 rounded font-mono text-[9px] text-white/50 uppercase tracking-wider">
+                  <Lock className="w-3 h-3 text-emerald-500" /> AES-256-GCM
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                {/* File Drop Area / Input */}
+                {!selectedFile ? (
+                  <div className="group relative border border-dashed border-white/10 hover:border-white/30 hover:bg-white/[0.01] rounded-xl p-8 text-center transition-all duration-300">
+                    <input
+                      type="file"
+                      accept=".aset"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setSelectedFile(e.target.files[0]);
+                          setVaultError(null);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="flex flex-col items-center justify-center gap-3 relative z-0 select-none">
+                      <div className="p-3 bg-white/5 group-hover:bg-white/10 border border-white/10 rounded-full transition-colors">
+                        <UploadCloud className="w-6 h-6 text-white/40 group-hover:text-white/80 animate-pulse" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-white/80 font-medium">Drag & drop or click to select encrypted audit</p>
+                        <p className="text-[10px] text-white/40 mt-1 font-mono">Accepts secured .aset files</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border border-white/10 bg-black/40 rounded-xl p-5 flex flex-col gap-4">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileText className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">{selectedFile.name}</p>
+                          <p className="text-[10px] text-white/40 font-mono mt-0.5">{(selectedFile.size / 1024).toFixed(2)} KB</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setVaultError(null);
+                        }}
+                        className="text-[10px] font-mono text-white/30 hover:text-white transition-colors uppercase border border-white/5 hover:border-white/20 px-2.5 py-1 rounded cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-mono uppercase tracking-wider text-white/40 select-none">Audit Decryption Key</label>
+                      <div className="relative">
+                        <input
+                          type="password"
+                          value={decryptPassphrase}
+                          onChange={(e) => setDecryptPassphrase(e.target.value)}
+                          placeholder="Enter AES-GCM secure passphrase..."
+                          className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors font-mono tracking-widest text-center"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleDecryptAndRestore();
+                            }
+                          }}
+                        />
+                        <Key className="w-3.5 h-3.5 text-white/35 absolute left-3 top-3.5" />
+                      </div>
+                    </div>
+
+                    {vaultError && (
+                      <p className="text-[11px] text-red-500 font-mono flex items-center gap-2 bg-red-500/5 border border-red-500/10 p-2.5 rounded-lg select-none">
+                        <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                        <span>{vaultError}</span>
+                      </p>
+                    )}
+
+                    <button
+                      onClick={handleDecryptAndRestore}
+                      disabled={isDecrypting || !decryptPassphrase}
+                      className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 font-mono text-[10px] tracking-wider uppercase font-bold text-black py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isDecrypting ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Decrypting & Authenticating Payload...
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="w-3.5 h-3.5 animate-pulse" />
+                          Decrypt & Read Archive (Offline Secure)
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                <div className="text-[10px] text-white/30 leading-relaxed font-sans mt-2 select-none">
+                  <strong>Confidentiality Assurance:</strong> Processed entirely inside your device's web thread. Your audit documents and secret passphrases never navigate over the network, providing mathematically absolute privacy.
+                </div>
+              </div>
+            </div>
           )}
 
           <AnimatePresence mode="wait">
@@ -388,9 +566,18 @@ export default function App() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-8 text-red-400 font-mono text-sm flex items-center gap-4"
+                className="mt-8 text-red-400 font-mono text-sm flex flex-col gap-3 max-w-2xl bg-red-950/10 border border-red-500/20 p-5 rounded-xl select-none"
               >
-                An error occurred while generating the report. Please try again.
+                <div className="flex items-center gap-3 text-red-300">
+                  <ShieldAlert className="w-5 h-5 shrink-0 text-red-400 animate-pulse" />
+                  <span className="font-bold uppercase tracking-wider text-xs">Analytical Auditing Error</span>
+                </div>
+                <p className="text-xs text-red-200/80 leading-relaxed font-sans select-text whitespace-pre-wrap max-h-40 overflow-y-auto pr-2">
+                  {errorDetails || 'An unexpected error occurred while generating the report. Please verify connection and try again.'}
+                </p>
+                <div className="text-[10px] text-white/30 pt-2 border-t border-white/5 leading-relaxed font-sans">
+                  <strong>Troubleshooting:</strong> If the error indicates a <strong>leaked key</strong> or <strong>quota exhausted (429)</strong>, please update your <strong>GEMINI_API_KEY</strong> under the <strong>Settings &gt; Secrets</strong> panel in the upper-right corner of AI Studio, or retry in a few seconds.
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -448,6 +635,13 @@ export default function App() {
                   >
                     <FileText className="w-4 h-4" />
                     Download PDF
+                  </button>
+                  <button
+                    onClick={() => setShowEncryptModal(true)}
+                    className="flex items-center gap-3 px-6 py-3 rounded-full border border-emerald-500/30 bg-emerald-950/10 hover:bg-emerald-500 hover:text-black transition-all duration-300 text-sm font-medium text-emerald-400 shrink-0"
+                  >
+                    <Lock className="w-4 h-4 animate-pulse" />
+                    Encrypt & Download (.aset)
                   </button>
                 </div>
               </div>
@@ -681,6 +875,101 @@ export default function App() {
               setCriticalError(null);
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Encrypt modal */}
+      <AnimatePresence>
+        {showEncryptModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4 select-none">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#0b0b0b] border border-white/10 w-full max-w-md rounded-2xl p-6 md:p-8 relative shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-emerald-500/[0.03] rounded-full blur-[80px] pointer-events-none" />
+
+              <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-mono uppercase tracking-wider text-white font-bold">Secure Local Encryption</h3>
+                    <p className="text-[10px] text-white/40">Encrypt report JSON and downloaded graphs</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowEncryptModal(false);
+                    setEncryptPassphrase('');
+                  }}
+                  className="text-white/40 hover:text-white transition-colors p-1 cursor-pointer"
+                >
+                  <ArrowRight className="w-4 h-4 rotate-45" />
+                </button>
+              </div>
+
+              <div className="space-y-5">
+                <p className="text-[11px] text-white/60 leading-relaxed">
+                  Enter a secret passphrase to encrypt this financial audit report. Under the hood, this uses client-side SHA-256 key hashing, PBKDF2 iteration stretches, and symmetric AES-256-GCM encryption.
+                </p>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono uppercase tracking-wider text-white/40">Passphrase</label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={encryptPassphrase}
+                      onChange={(e) => setEncryptPassphrase(e.target.value)}
+                      placeholder="Choose a strong passphrase..."
+                      className="w-full bg-white/5 border border-white/10 rounded-lg py-2.5 pl-9 pr-4 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors font-mono tracking-widest text-center"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleEncryptAndDownload();
+                        }
+                      }}
+                    />
+                    <Key className="w-3.5 h-3.5 text-white/35 absolute left-3 top-3.5" />
+                  </div>
+                </div>
+
+                <div className="bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-lg text-[10px] text-emerald-400 font-mono leading-relaxed">
+                  <strong>Private Vault Protocol:</strong> Keep this password secure. Since ASET does not store keys, passwords, or encrypted blocks on any server, there is no "password recovery" mechanism.
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => {
+                      setShowEncryptModal(false);
+                      setEncryptPassphrase('');
+                    }}
+                    className="flex-1 bg-transparent hover:bg-white/5 border border-white/5 text-white/60 hover:text-white py-2.5 rounded-lg text-[10px] font-mono uppercase tracking-wider font-semibold transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleEncryptAndDownload}
+                    disabled={isEncrypting || !encryptPassphrase.trim()}
+                    className="flex-1 bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-30 font-mono text-[10px] uppercase tracking-wider font-bold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {isEncrypting ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Encrypting...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3 h-3" />
+                        Lock & Download
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

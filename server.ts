@@ -99,28 +99,6 @@ If chart data is unavailable, provide an empty array for data.`,
       if (mode === 'thinking') {
         // High quality deep reasoning sequence
         attempts.push({
-          model: 'gemini-2.5-pro',
-          config: {
-            systemInstruction: config.systemInstruction,
-            thinkingConfig: {
-              thinkingLevel: ThinkingLevel.HIGH
-            }
-          },
-          description: 'Gemini 2.5 Pro (Thinking)'
-        });
-
-        attempts.push({
-          model: 'gemini-2.5-flash',
-          config: {
-            systemInstruction: config.systemInstruction,
-            thinkingConfig: {
-              thinkingLevel: ThinkingLevel.HIGH
-            }
-          },
-          description: 'Gemini 2.5 Flash (Thinking)'
-        });
-
-        attempts.push({
           model: 'gemini-3.1-pro-preview',
           config: {
             systemInstruction: config.systemInstruction,
@@ -128,38 +106,37 @@ If chart data is unavailable, provide an empty array for data.`,
               thinkingLevel: ThinkingLevel.HIGH
             }
           },
-          description: 'Gemini 3.1 Pro Preview (Thinking)'
+          description: 'Gemini 3.1 Pro (Thinking)'
         });
 
         attempts.push({
-          model: 'gemini-1.5-pro',
+          model: 'gemini-3.5-flash',
           config: {
             systemInstruction: config.systemInstruction,
             maxOutputTokens: 8192
           },
-          description: 'Gemini 1.5 Pro (Standard)'
+          description: 'Gemini 3.5 Flash'
         });
 
         attempts.push({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-3.1-flash-lite',
           config: {
             systemInstruction: config.systemInstruction,
             maxOutputTokens: 8192
           },
-          description: 'Gemini 1.5 Flash (Standard)'
+          description: 'Gemini 3.1 Flash Lite'
+        });
+
+        attempts.push({
+          model: 'gemini-flash-latest',
+          config: {
+            systemInstruction: config.systemInstruction,
+            maxOutputTokens: 8192
+          },
+          description: 'Gemini Flash Latest'
         });
       } else {
         // Real-time market search grounding sequence
-        attempts.push({
-          model: 'gemini-2.5-flash',
-          config: {
-            systemInstruction: config.systemInstruction,
-            tools: [{ googleSearch: {} }],
-            maxOutputTokens: 8192
-          },
-          description: 'Gemini 2.5 Flash with Search Grounding'
-        });
-
         attempts.push({
           model: 'gemini-3.5-flash',
           config: {
@@ -167,35 +144,45 @@ If chart data is unavailable, provide an empty array for data.`,
             tools: [{ googleSearch: {} }],
             maxOutputTokens: 8192
           },
-          description: 'Gemini 3.5 Flash with Search Grounding'
+          description: 'Gemini 3.5 Flash (Search)'
         });
 
         attempts.push({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-3.1-pro-preview',
           config: {
             systemInstruction: config.systemInstruction,
             tools: [{ googleSearch: {} }],
             maxOutputTokens: 8192
           },
-          description: 'Gemini 1.5 Flash with Search Grounding'
+          description: 'Gemini 3.1 Pro (Search)'
         });
 
         attempts.push({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.1-flash-lite',
+          config: {
+            systemInstruction: config.systemInstruction,
+            tools: [{ googleSearch: {} }],
+            maxOutputTokens: 8192
+          },
+          description: 'Gemini 3.1 Flash Lite (Search)'
+        });
+
+        attempts.push({
+          model: 'gemini-3.5-flash',
           config: {
             systemInstruction: config.systemInstruction,
             maxOutputTokens: 8192
           },
-          description: 'Gemini 2.5 Flash (Standard fallback)'
+          description: 'Gemini 3.5 Flash (Standard fallback)'
         });
 
         attempts.push({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-3.1-flash-lite',
           config: {
             systemInstruction: config.systemInstruction,
             maxOutputTokens: 8192
           },
-          description: 'Gemini 1.5 Flash (Standard fallback)'
+          description: 'Gemini 3.1 Flash Lite (Standard fallback)'
         });
       }
 
